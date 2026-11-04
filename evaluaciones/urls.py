@@ -1,0 +1,4 @@
+from django.urls import path
+from django.contrib.auth import views as auth_views
+from . import views
+urlpatterns=[path('configuracion/',views.configuracion,name='configuracion'),path('',views.inicio,name='inicio'),path('registro/',views.registro,name='registro'),path('ingresar/',auth_views.LoginView.as_view(template_name='evaluaciones/login.html'),name='login'),path('salir/',auth_views.LogoutView.as_view(),name='logout'),path('nueva/',views.nueva,name='nueva'),path('sugerir-ia/',views.sugerir_ia,name='sugerir_ia'),path('evaluacion/<int:pk>/editar/',views.nueva,name='editar'),path('evaluacion/<int:pk>/',views.resultado,name='resultado'),path('evaluacion/<int:pk>/gemini/',views.generar_ia,name='generar_ia'),path('evaluacion/<int:pk>/pdf/',views.informe_pdf,name='informe_pdf'),path('evaluacion/<int:pk>/eliminar/',views.eliminar,name='eliminar')]

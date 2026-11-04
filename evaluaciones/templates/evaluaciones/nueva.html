@@ -1,0 +1,58 @@
+{% extends 'evaluaciones/base.html' %}{% block content %}
+<h2>{% if ev %}Continuar evaluación{% else %}Nueva evaluación{% endif %} · GUIOS PRO</h2>
+<p class="muted">Guía de adopción de software libre y código abierto. Complete las etapas para obtener la matriz FODA.</p>
+<form method="post" id="evaluacionForm">{% csrf_token %}
+<div class="card grid"><label>Nombre de evaluación<input name="nombre" required value="{{ev.nombre|default:''}}"></label><label>Organización<input name="organizacion" value="{{ev.organizacion|default:''}}"></label><label>Software FLOSS<input name="software" required value="{{ev.software|default:''}}"></label></div>
+<div class="card"><label>Descripción<textarea name="descripcion" rows="2">{{ev.descripcion|default:''}}</textarea></label></div>
+<div class="card"><button type="button" id="autocompletarIA" class="secondary">✨ Autocompletar con Gemini</button> <span id="estadoIA" class="muted" role="status" aria-live="polite">Gemini propondrá importancias y cumplimiento. Revise todos los datos antes de guardar.</span></div>
+<div class="note">Método de importancia sugerida para esta evaluación: <strong>{% if metodo == "TESIS" %}Metodología de la tesis{% else %}Gemini IA{% endif %}</strong>. La selección la realiza el administrador.</div>
+<nav class="tabs"><button type="button" class="tab active" data-tab="paso1">1–2 · Factores</button><button type="button" class="tab" data-tab="paso2">3–4 · Subfactores</button><button type="button" class="tab" data-tab="paso3">5–6 · FODA</button></nav>
+<section class="panel active card" id="paso1"><h3>Obtención de factores relevantes</h3><p>Importancia relativa = matriz de combinación IS e ID definida en la tesis. Los factores con resultado 1 no se evalúan.</p><div class="tablewrap"><table><thead><tr><th>Dimensión / Factor</th><th>Sugerida</th><th>Importancia del decisor</th><th>Relativa</th><th>Alcance</th></tr></thead><tbody>
+{% for f in factores %}<tr class="frow" data-factor="{{f.id}}" data-sugerida="{{f.sugerida_actual}}"><td><strong>{{f.nombre}}</strong><div class="muted">{{f.dimension.nombre}}</div></td><td><select name="sugerida_{{f.id}}" class="suggested-range" required {% if metodo == "TESIS" %}disabled{% endif %} aria-label="Importancia sugerida de {{f.nombre}}">{% for n,desc in niveles %}<option value="{{n}}" {% if f.sugerida_actual == n %}selected{% endif %}>{{n}} · {{desc}}</option>{% endfor %}</select>{% if metodo == "TESIS" %}<input type="hidden" name="sugerida_{{f.id}}" value="{{f.sugerida_actual}}">{% endif %}<input type="hidden" name="justificacion_{{f.id}}" class="suggestion-reason" value="{{f.justificacion_actual}}"><small class="muted suggestion-explanation">{{f.justificacion_actual}}</small></td><td><select name="decisor_{{f.id}}" class="factor-range" required><option value="">Seleccione</option>{% for n,desc in niveles %}<option value="{{n}}" {% if f.valor_actual == n %}selected{% endif %}>{{n}} · {{desc}}</option>{% endfor %}</select></td><td><output class="relativa-label">Pendiente</output></td><td>{% if f.alcance == 'Ambos' %}<select name="alcance_{{f.id}}" class="scope"><option value="">Seleccione alcance</option><option value="Interno" {% if f.alcance_actual == 'Interno' %}selected{% endif %}>Interno</option><option value="Externo" {% if f.alcance_actual == 'Externo' %}selected{% endif %}>Externo</option></select>{% else %}<span>{{f.alcance}}</span><input type="hidden" name="alcance_{{f.id}}" class="scope" value="{{f.alcance}}">{% endif %}</td></tr>{% endfor %}
+</tbody></table></div><div class="controls"><button type="button" data-next="paso2">Continuar</button></div></section>
+<section class="panel card" id="paso2"><h3>Ponderación de subfactores</h3><p>1 = No cumple · 2 = Desconozco · 3 = Cumple parcialmente · 4 = Cumple. El valor 2 también cuenta en el promedio.</p><label>Factor relevante<select id="factorSelect"></select></label>
+{% for f in factores %}<div class="subgroup hidden" data-group="{{f.id}}"><h3>{{f.nombre}}</h3><div class="tablewrap"><table><thead><tr><th>Subfactor</th><th>Cumplimiento</th></tr></thead><tbody>{% for s in f.subfactores.all %}{% if s.activo %}<tr><td>{{s.nombre}}</td><td><select name="sub_{{s.id}}" class="sub-range"><option value="">Seleccione</option>{% for n,desc in subniveles %}<option value="{{n}}" {% if s.valor_actual == n %}selected{% endif %}>{{n}} · {{desc}}</option>{% endfor %}</select></td></tr>{% endif %}{% endfor %}</tbody></table></div><p>Media: <strong class="media-label">Pendiente</strong></p></div>{% endfor %}
+<div class="controls"><button type="button" class="secondary" data-next="paso1">Anterior</button><button type="submit" name="accion" value="borrador" class="secondary">Guardar progreso</button><button type="button" data-next="paso3">Ver FODA</button></div></section>
+<section class="panel card" id="paso3"><h3>Matriz FODA y recomendación</h3><div class="tablewrap"><table><thead><tr><th>Factor</th><th>Importancia</th><th>Media</th><th>Alcance</th><th>Clasificación</th></tr></thead><tbody id="fodaPreview"></tbody></table></div><div class="note" id="recomendacionPreview"></div><div class="controls"><button type="button" class="secondary" data-next="paso2">Anterior</button><button type="submit" name="accion" value="borrador" class="secondary">Guardar progreso</button><button type="submit" name="accion" value="finalizar">Finalizar evaluación</button></div></section></form>
+<script>
+const MATRIX={1:{1:1,2:1,3:2,4:2},2:{1:1,2:2,3:2,4:3},3:{1:2,2:2,3:3,4:3},4:{1:2,2:3,3:3,4:4}};
+const levels=['Irrelevante','Opcional','Importante','Fundamental'];const rows=[...document.querySelectorAll('.frow')],groups=[...document.querySelectorAll('.subgroup')];
+function relative(row){const v=Number(row.querySelector('.factor-range').value);return v?MATRIX[v][Number(row.dataset.sugerida)]:0}
+function update(){let select=document.getElementById('factorSelect'),previous=select.value;select.innerHTML='';rows.forEach(row=>{let rel=relative(row);row.querySelector('.relativa-label').textContent=rel?`${rel} · ${levels[rel-1]}`:'Pendiente';if(rel>1){let opt=document.createElement('option');opt.value=row.dataset.factor;opt.textContent=row.querySelector('strong').textContent;select.appendChild(opt)}});if([...select.options].some(o=>o.value===previous))select.value=previous;showGroup();preview()}
+function showGroup(){groups.forEach(g=>g.classList.toggle('hidden',g.dataset.group!==document.getElementById('factorSelect').value))}
+function preview(){let body=document.getElementById('fodaPreview');body.replaceChildren();let neg=[],pending=0,completed=0;rows.forEach(row=>{let rel=relative(row);if(!rel){pending++;return}if(rel===1)return;let group=groups.find(g=>g.dataset.group===row.dataset.factor);let selects=[...group.querySelectorAll('.sub-range')];let ready=selects.length>0&&selects.every(s=>s.value);let scope=row.querySelector('.scope').value;let media=ready?selects.reduce((sum,s)=>sum+Number(s.value),0)/selects.length:null;let classification=ready&&scope?(scope==='Interno'?(media>=3?'Fortaleza':'Debilidad'):(media>=3?'Oportunidad':'Amenaza')):'Pendiente';if(classification==='Pendiente')pending++;else{completed++;if(media<3)neg.push(rel)}let tr=document.createElement('tr');[row.querySelector('strong').textContent,levels[rel-1],ready?media.toFixed(2):'—',scope||'Sin definir',classification].forEach(value=>{let td=document.createElement('td');td.textContent=value;tr.appendChild(td)});body.appendChild(tr);group.querySelector('.media-label').textContent=ready?media.toFixed(2):'Pendiente'});document.getElementById('recomendacionPreview').textContent=pending?'Hay '+pending+' factor(es) pendientes. No se puede emitir una recomendación definitiva.':!completed?'No hay factores relevantes. Revise sus valoraciones.':neg.some(n=>n>=3)?'C · No se recomienda adoptar hasta corregir debilidades o amenazas importantes o fundamentales.':neg.length?'B · Adopción posible con revisión de los factores opcionales negativos.':'A · Se recomienda adoptar.'}
+function tab(id){document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id===id));document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));preview()}
+document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>tab(b.dataset.tab)));document.querySelectorAll('[data-next]').forEach(b=>b.addEventListener('click',()=>tab(b.dataset.next)));document.querySelectorAll('.factor-range,.suggested-range,.scope,.sub-range').forEach(e=>e.addEventListener('change',()=>{if(e.classList.contains('suggested-range'))e.closest('.frow').dataset.sugerida=e.value;update()}));document.getElementById('factorSelect').addEventListener('change',showGroup);document.getElementById('evaluacionForm').addEventListener('submit',e=>{if(e.submitter?.value!=='finalizar')return;let incomplete=rows.some(row=>{let rel=relative(row);if(!rel)return true;if(rel===1)return false;let group=groups.find(g=>g.dataset.group===row.dataset.factor);return !row.querySelector('.scope').value||![...group.querySelectorAll('.sub-range')].length||[...group.querySelectorAll('.sub-range')].some(s=>!s.value)});if(incomplete){e.preventDefault();alert('Complete todos los factores relevantes y sus subfactores antes de finalizar.')}});update();
+const aiButton=document.getElementById('autocompletarIA');
+const aiStatus=document.getElementById('estadoIA');
+aiButton.addEventListener('click',async()=>{
+ const form=document.getElementById('evaluacionForm');
+ const software=form.elements.namedItem('software').value.trim();
+ if(!software){aiStatus.textContent='Primero escriba el nombre del software.';return}
+ if(!confirm('Gemini reemplazará los valores actuales del formulario. ¿Desea continuar?'))return;
+ aiButton.disabled=true;aiStatus.textContent='Consultando Gemini…';
+ try{
+  const payload=new FormData();
+  ['software','organizacion','descripcion'].forEach(name=>payload.append(name,form.elements.namedItem(name).value));
+  payload.append('evaluacion_id','{{ev.pk|default:""}}');
+  payload.append('csrfmiddlewaretoken',form.elements.namedItem('csrfmiddlewaretoken').value);
+  const response=await fetch('{% url "sugerir_ia" %}',{method:'POST',body:payload,credentials:'same-origin'});
+  const result=await response.json();
+  if(!response.ok)throw new Error(result.error||'No fue posible consultar Gemini.');
+  let count=0;
+  result.factores.forEach(f=>{
+   const row=rows.find(r=>Number(r.dataset.factor)===f.id);if(!row)return;
+   row.querySelector('.suggested-range').value=String(f.sugerida);
+   row.dataset.sugerida=String(f.sugerida);
+   row.querySelector('.factor-range').value=String(f.decisor);
+   row.querySelector('.suggestion-reason').value=f.justificacion;
+   row.querySelector('.suggestion-explanation').textContent=f.justificacion;
+   const scope=row.querySelector('.scope');if(scope&&scope.tagName==='SELECT')scope.value=f.alcance;
+   f.subfactores.forEach(sf=>{const control=form.elements.namedItem('sub_'+sf.id);if(control)control.value=String(sf.valor)});
+   count++;
+  });
+  update();aiStatus.textContent=`Gemini sugirió valores para ${count} factores. Puede modificarlos antes de guardar.`;
+ }catch(error){aiStatus.textContent=error.message}
+ finally{aiButton.disabled=false}
+});
+</script>{% endblock %}

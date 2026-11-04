@@ -1,0 +1,8 @@
+{% extends 'evaluaciones/base.html' %}{% block content %}
+<h2>Configuración de importancia sugerida</h2>
+<div class="card"><p>Solo el Administrador puede cambiar el método. Las evaluaciones existentes conservan el método con el que se crearon.</p>
+<form method="post">{% csrf_token %}
+<label><input type="radio" name="metodo_importancia" value="TESIS" {% if config.metodo_importancia == 'TESIS' %}checked{% endif %} style="width:auto"> <strong>Tesis</strong> — utiliza los valores de referencia del catálogo y la matriz IE/IL.</label><br><br>
+<label><input type="radio" name="metodo_importancia" value="IA" {% if config.metodo_importancia == 'IA' %}checked{% endif %} style="width:auto"> <strong>Gemini IA</strong> — propone la importancia sugerida a partir del contexto.</label><br><br>
+<button type="submit">Guardar configuración</button></form></div>
+{% endblock %}

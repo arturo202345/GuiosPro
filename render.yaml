@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: guios-pro
+    runtime: python
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate && python manage.py configurar_roles"
+    startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: guios-pro-db
+          property: connectionString
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: '0'
+      - key: DJANGO_ALLOWED_HOSTS
+        value: '.onrender.com'
+      - key: GEMINI_MODEL
+        value: gemini-flash-lite-latest
+      - key: GEMINI_API_KEY
+        sync: false
+
+databases:
+  - name: guios-pro-db
+    databaseName: guiospro
+    user: guiospro

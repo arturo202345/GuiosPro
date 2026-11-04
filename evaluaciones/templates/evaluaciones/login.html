@@ -1,0 +1,1 @@
+{% extends 'evaluaciones/base.html' %}{% block content %}<div class="card auth"><h2>Iniciar sesión</h2><form method="post">{% csrf_token %}{{form.as_p}}<button type="submit">Ingresar</button></form><p>¿No tienes cuenta? <a href="{% url 'registro' %}">Registrarse</a></p></div>{% endblock %}
