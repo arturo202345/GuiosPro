@@ -1,7 +1,7 @@
 # GUIOS PRO: método de importancia sugerida
 
-- Acceda como usuario del grupo **Administrador** (o superusuario) y abra **Método de importancia** en el menú lateral.
-- **TESIS** (predeterminado): utiliza el valor de referencia `Factor.sugerida` importado en el catálogo, sin sustituirlo por Gemini. La importancia relativa se calcula mediante la matriz de la tesis, no por promedio truncado. Gemini puede proponer el cumplimiento y el decisor; nunca sustituye IS en este modo.
+- Acceda como usuario del grupo **Administrador** (o superusuario) y abra **Configuración** en el menú lateral.
+- **TESIS** (predeterminado): utiliza el valor de referencia `Factor.sugerida` importado en el catálogo, sin sustituirlo por Gemini. La importancia relativa se calcula mediante la matriz de la tesis (equivale numéricamente a `floor((sugerida+decisor)/2)`; una prueba lo verifica). Gemini puede proponer el cumplimiento y el decisor; nunca sustituye IS en este modo.
 - **IA**: Gemini propone `sugerida` entre 1 y 4 y una explicación; el evaluador puede editarla. La importancia relativa se calcula con la misma matriz.
 - La selección se congela en cada evaluación al crearla; cambiar la configuración global solo afecta a evaluaciones nuevas.
 - En ambos modos la justificación final puede generarse con Gemini.
@@ -13,6 +13,7 @@
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py configurar_roles
+python manage.py importar_catalogo
 python manage.py runserver
 ```
 

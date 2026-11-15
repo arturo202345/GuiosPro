@@ -1,0 +1,6 @@
+{% extends 'evaluaciones/base.html' %}{% block content %}
+<h2>Panel de administración</h2><p class="muted">Gestione el catálogo, los usuarios y la configuración sin salir de GUIOS PRO.</p>
+<div class="kpis six">{% for etiqueta,total,ruta in conteos %}<a class="kpi" href="{% url ruta %}">{{etiqueta}}<strong>{{total}}</strong></a>{% endfor %}</div>
+<div class="card"><h3>Configuración actual</h3><p>Método de importancia: <strong>{{config.get_metodo_importancia_display}}</strong> · Registro público: <strong>{% if config.registro_abierto %}abierto{% else %}cerrado{% endif %}</strong> · <a href="{% url 'configuracion' %}">Cambiar</a></p></div>
+<div class="card"><h3>Atajos</h3><a class="btn" href="{% url 'panel_dimension_nueva' %}">+ Dimensión</a> <a class="btn" href="{% url 'panel_factor_nuevo' %}">+ Factor</a> <a class="btn" href="{% url 'panel_subfactor_nuevo' %}">+ Subfactor</a> <a class="btn" href="{% url 'panel_usuario_nuevo' %}">+ Usuario</a></div>
+{% endblock %}

@@ -29,6 +29,7 @@ class Evaluacion(models.Model):
  estado=models.CharField(max_length=20,default="EN_PROCESO")
  paso_actual=models.PositiveSmallIntegerField(default=1)
  metodo_importancia=models.CharField(max_length=5,choices=[('TESIS','Tesis'),('IA','Gemini')],default='TESIS')
+ origen=models.ForeignKey('self',on_delete=models.SET_NULL,null=True,blank=True,related_name='versiones')
  fecha=models.DateTimeField(auto_now_add=True)
  def __str__(self):return f'{self.nombre} - {self.software}'
 class ValorFactor(models.Model):
@@ -62,6 +63,7 @@ class ConfiguracionSistema(models.Model):
     """Única configuración global, modificable únicamente por Administrador."""
     METODOS = [('TESIS', 'Metodología de la tesis'), ('IA', 'Gemini IA')]
     metodo_importancia = models.CharField(max_length=5, choices=METODOS, default='TESIS')
+    registro_abierto = models.BooleanField(default=True)
     actualizado = models.DateTimeField(auto_now=True)
 
     @classmethod

@@ -1,0 +1,2 @@
+{% extends 'evaluaciones/base.html' %}{% block content %}
+<div class="card"><h2>{{titulo}}</h2><p>¿Seguro que desea eliminar <strong>{{objeto}}</strong>?</p>{% if aviso %}<div class="note">{{aviso}}</div>{% endif %}<form method="post">{% csrf_token %}<div class="controls"><a class="btn secondary" href="{{volver}}">Cancelar</a><button type="submit" class="danger">Sí, eliminar</button></div></form></div>{% endblock %}

@@ -1,10 +1,14 @@
 from pathlib import Path
 import os
+from django.core.exceptions import ImproperlyConfigured
 BASE_DIR=Path(__file__).resolve().parent.parent
-SECRET_KEY=os.environ.get('DJANGO_SECRET_KEY','development-only-change-before-deploy')
+SECRET_KEY_DESARROLLO='development-only-change-before-deploy'
+SECRET_KEY=os.environ.get('DJANGO_SECRET_KEY',SECRET_KEY_DESARROLLO)
 DEBUG=os.environ.get('DJANGO_DEBUG','1')=='1'
+if not DEBUG and SECRET_KEY==SECRET_KEY_DESARROLLO:
+    raise ImproperlyConfigured('Defina DJANGO_SECRET_KEY cuando DJANGO_DEBUG=0.')
 ALLOWED_HOSTS=os.environ.get('DJANGO_ALLOWED_HOSTS','127.0.0.1,localhost').split(',')
-INSTALLED_APPS=['django.contrib.admin','django.contrib.auth','django.contrib.contenttypes','django.contrib.sessions','django.contrib.messages','django.contrib.staticfiles','evaluaciones']
+INSTALLED_APPS=['django.contrib.auth','django.contrib.contenttypes','django.contrib.sessions','django.contrib.messages','django.contrib.staticfiles','evaluaciones']
 MIDDLEWARE=['django.middleware.security.SecurityMiddleware','whitenoise.middleware.WhiteNoiseMiddleware','django.contrib.sessions.middleware.SessionMiddleware','django.middleware.common.CommonMiddleware','django.middleware.csrf.CsrfViewMiddleware','django.contrib.auth.middleware.AuthenticationMiddleware','django.contrib.messages.middleware.MessageMiddleware','django.middleware.clickjacking.XFrameOptionsMiddleware']
 ROOT_URLCONF='config.urls'
 TEMPLATES=[{'BACKEND':'django.template.backends.django.DjangoTemplates','DIRS':[],'APP_DIRS':True,'OPTIONS':{'context_processors':['django.template.context_processors.debug','django.template.context_processors.request','django.contrib.auth.context_processors.auth','django.contrib.messages.context_processors.messages','evaluaciones.context_processors.user_role']}}]
@@ -19,7 +23,12 @@ SESSION_COOKIE_SECURE=not DEBUG
 CSRF_COOKIE_SECURE=not DEBUG
 STATIC_ROOT=BASE_DIR/'staticfiles'
 STORAGES={'default':{'BACKEND':'django.core.files.storage.FileSystemStorage'},'staticfiles':{'BACKEND':'whitenoise.storage.CompressedManifestStaticFilesStorage'}}
-AUTH_PASSWORD_VALIDATORS=[]
+AUTH_PASSWORD_VALIDATORS=[
+    {'NAME':'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME':'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME':'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME':'django.contrib.auth.password_validation.NumericPasswordValidator'},
+]
 LANGUAGE_CODE='es'
 TIME_ZONE='America/Guayaquil'
 USE_I18N=True
@@ -33,3 +42,6 @@ LOGOUT_REDIRECT_URL='login'
 
 GEMINI_API_KEY=os.environ.get('GEMINI_API_KEY','')
 GEMINI_MODEL=os.environ.get('GEMINI_MODEL','gemini-flash-lite-latest')
+# Tiempo máximo (ms) de cada llamada a Gemini y límite de consultas de IA por usuario y hora.
+GEMINI_TIMEOUT_MS=int(os.environ.get('GEMINI_TIMEOUT_MS','30000'))
+IA_LIMITE_POR_HORA=int(os.environ.get('IA_LIMITE_POR_HORA','30'))

@@ -1,0 +1,2 @@
+{% extends 'evaluaciones/base.html' %}{% block content %}
+<div class="card"><h2>{{titulo}}</h2><form method="post" class="formgrid" novalidate>{% csrf_token %}{{form.non_field_errors}}{% for field in form %}<label>{{field.label}}{{field}}{% if field.help_text %}<small class="muted">{{field.help_text}}</small>{% endif %}{{field.errors}}</label>{% endfor %}<div class="controls"><a class="btn secondary" href="{{volver}}">Cancelar</a><button type="submit">Guardar</button></div></form></div>{% endblock %}
