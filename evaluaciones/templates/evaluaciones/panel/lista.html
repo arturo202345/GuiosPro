@@ -1,6 +1,141 @@
-{% extends 'evaluaciones/base.html' %}{% block content %}
-<div class="card"><div class="toolbar"><h2>{{titulo}}</h2>{% if nuevo_url %}<a class="btn" href="{{nuevo_url}}">+ Nuevo</a>{% endif %}</div>
-{% if filtros or buscar_activo %}<form method="get" class="filters">{% for f in filtros %}<label>{{f.label}}<select name="{{f.nombre}}"><option value="">Todos</option>{% for valor,texto in f.opciones %}<option value="{{valor}}" {% if f.actual == valor %}selected{% endif %}>{{texto}}</option>{% endfor %}</select></label>{% endfor %}{% if buscar_activo %}<label>Buscar<input name="q" value="{{q}}"></label>{% endif %}<button type="submit" class="secondary">Filtrar</button><a href="?">Limpiar</a></form>{% endif %}
-<div class="tablewrap"><table class="simple"><thead><tr>{% for c in columnas %}<th>{{c}}</th>{% endfor %}<th>Acciones</th></tr></thead><tbody>
-{% for f in filas %}<tr>{% for c in f.celdas %}<td>{{c}}</td>{% endfor %}<td class="actions">{% for etiqueta,url in f.extras %}<a class="btn secondary" href="{{url}}">{{etiqueta}}</a> {% endfor %}{% if f.editar %}<a class="btn secondary" href="{{f.editar}}">Editar</a> {% endif %}{% if f.eliminar %}<a class="btn danger" href="{{f.eliminar}}">Eliminar</a>{% endif %}</td></tr>{% empty %}<tr><td colspan="{{ncols}}" class="muted">Sin registros.</td></tr>{% endfor %}
-</tbody></table></div>{% include 'evaluaciones/panel/_pager.html' %}</div>{% endblock %}
+{% extends 'evaluaciones/base.html' %}
+{% block title %}{{ titulo }} — Panel GUIOS PRO{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <!-- Breadcrumb -->
+  <div class="flex items-center justify-between text-xs text-slate-500 pb-2 border-b border-slate-200">
+    <div class="flex items-center gap-2 text-sm">
+      <a href="{% url 'panel' %}" class="text-slate-500 hover:text-slate-800 transition-colors">Panel de Administración</a>
+      <span class="text-slate-300">/</span>
+      <span class="font-semibold text-slate-900">{{ titulo }}</span>
+    </div>
+    {% if nuevo_url %}
+    <a href="{{ nuevo_url }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#047857] hover:bg-[#065f46] text-white text-xs font-semibold transition-colors shadow-sm">
+      <span class="material-symbols-outlined text-[16px]">add</span>
+      <span>+ Nuevo Registro</span>
+    </a>
+    {% endif %}
+  </div>
+
+  <!-- Main Table Card -->
+  <div class="bg-white rounded-md border border-slate-300 shadow-sm overflow-hidden space-y-0">
+    <!-- Toolbar & Filters -->
+    <div class="p-4 border-b border-slate-200 bg-slate-50/70 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="flex items-center gap-2.5">
+        <h1 class="text-base font-bold text-slate-900 font-display">{{ titulo }}</h1>
+        <span class="text-xs px-2 py-0.5 rounded bg-slate-200 text-slate-700 font-mono">
+          {{ page.paginator.count|default:filas|length }} registros
+        </span>
+      </div>
+
+      {% if filtros or buscar_activo %}
+      <form method="get" class="flex flex-wrap items-center gap-3">
+        {% for f in filtros %}
+          <div class="flex items-center gap-1.5 text-xs text-slate-600">
+            <span class="font-semibold">{{ f.label }}:</span>
+            <select name="{{ f.nombre }}" class="py-1 px-2.5 bg-white border border-slate-300 rounded text-xs text-slate-800 focus:outline-none focus:border-emerald-700">
+              <option value="">Todos</option>
+              {% for valor, texto in f.opciones %}
+                <option value="{{ valor }}" {% if f.actual == valor %}selected{% endif %}>{{ texto }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        {% endfor %}
+
+        {% if buscar_activo %}
+          <div class="relative">
+            <span class="material-symbols-outlined text-[16px] text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none">
+              search
+            </span>
+            <input
+              type="text"
+              name="q"
+              value="{{ q|default:'' }}"
+              placeholder="Buscar..."
+              class="pl-7 pr-3 py-1 text-xs bg-white border border-slate-300 rounded focus:outline-none focus:border-emerald-700 w-44"
+            >
+          </div>
+        {% endif %}
+
+        <button type="submit" class="px-3 py-1 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded transition-colors">
+          Filtrar
+        </button>
+
+        {% if q or request.GET %}
+          <a href="?" class="text-xs text-slate-500 hover:text-slate-800 underline">
+            Limpiar
+          </a>
+        {% endif %}
+      </form>
+      {% endif %}
+    </div>
+
+    <!-- Table -->
+    <div class="overflow-x-auto w-full">
+      <table class="w-full text-left border-collapse">
+        <thead class="bg-slate-50 text-[11px] font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200 font-mono">
+          <tr>
+            {% for c in columnas %}
+              <th class="py-3 px-4">{{ c }}</th>
+            {% endfor %}
+            <th class="py-3 px-4 text-right">Acciones</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200 text-xs bg-white">
+          {% for f in filas %}
+          <tr class="hover:bg-slate-50/70 transition-colors">
+            {% for c in f.celdas %}
+              <td class="py-3 px-4 text-slate-800">
+                {% if c == True %}
+                  <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-mono">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                    Activo
+                  </span>
+                {% elif c == False %}
+                  <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 font-mono">
+                    Inactivo
+                  </span>
+                {% else %}
+                  {{ c }}
+                {% endif %}
+              </td>
+            {% endfor %}
+            <td class="py-3 px-4 text-right whitespace-nowrap">
+              <div class="inline-flex items-center gap-1.5">
+                {% for etiqueta, url in f.extras %}
+                  <a href="{{ url }}" class="px-2.5 py-1 rounded border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition-colors">
+                    {{ etiqueta }}
+                  </a>
+                {% endfor %}
+
+                {% if f.editar %}
+                  <a href="{{ f.editar }}" class="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition-colors">
+                    Editar
+                  </a>
+                {% endif %}
+
+                {% if f.eliminar %}
+                  <a href="{{ f.eliminar }}" class="px-2.5 py-1 rounded border border-red-200 hover:bg-red-50 text-red-700 text-xs font-semibold transition-colors">
+                    Eliminar
+                  </a>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="{{ ncols|default:5 }}" class="p-8 text-center text-slate-400 text-xs">
+              No se encontraron registros coincidentes.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pager -->
+    {% include 'evaluaciones/panel/_pager.html' %}
+  </div>
+</div>
+{% endblock %}

@@ -66,6 +66,14 @@ def limite_ia(usuario):
     return usadas <= getattr(settings, 'IA_LIMITE_POR_HORA', 30)
 
 
+def landing(request):
+    """Página de presentación pública para visitantes con estética brutalist/editorial."""
+    registro_abierto = ConfiguracionSistema.actual().registro_abierto
+    return render(request, 'evaluaciones/landing.html', {
+        'registro_abierto': registro_abierto,
+    })
+
+
 @login_required
 def inicio(request):
     actual = rol(request.user)
@@ -87,9 +95,7 @@ def datos_formulario(request, metodo, finalizar=False):
             raise ValueError('Seleccione la importancia de todos los factores.')
         decisor = int(raw)
         raw_sugerida = request.POST.get(f'sugerida_{f.pk}', '')
-        if metodo == 'IA' and raw_sugerida not in ('1', '2', '3', '4'):
-            raise ValueError('Seleccione la importancia sugerida de ' + f.nombre)
-        sugerida = f.sugerida if metodo == 'TESIS' else int(raw_sugerida)
+        sugerida = int(raw_sugerida) if raw_sugerida in ('1', '2', '3', '4') else f.sugerida
         rel = importancia_relativa(sugerida, decisor)
         justificacion = ('Valor de referencia del catálogo de la tesis.' if metodo == 'TESIS'
                          else request.POST.get(f'justificacion_{f.pk}', '').strip()[:1500])
@@ -125,7 +131,82 @@ def nueva(request, pk=None):
     metodo = ev.metodo_importancia if ev else ConfiguracionSistema.actual().metodo_importancia
     factores = (Factor.objects.filter(activo=True, dimension__activo=True)
                 .select_related('dimension').prefetch_related('subfactores').order_by('dimension_id', 'id'))
+
+    # Si es GET y no se indicó una evaluación existente, mostramos la pantalla inicial de datos preliminares
+    if request.method == 'GET' and pk is None:
+        from .constantes import HERRAMIENTAS_COMUNES
+        return render(request, 'evaluaciones/datos_iniciales.html', {
+            'metodo': metodo,
+            'herramientas_comunes': HERRAMIENTAS_COMUNES,
+        })
+
     if request.method == 'POST':
+        # Detectamos si es la creación inicial desde datos_iniciales.html
+        es_creacion_inicial = (request.POST.get('accion') == 'iniciar_expediente' or
+                               not any(k.startswith('decisor_') for k in request.POST.keys()))
+        if es_creacion_inicial:
+            nombre = request.POST.get('nombre', '').strip()
+            software = request.POST.get('software', '').strip()
+            if not nombre or not software:
+                messages.error(request, 'Indique el nombre de la evaluación y el software a evaluar.')
+                from .constantes import HERRAMIENTAS_COMUNES
+                return render(request, 'evaluaciones/datos_iniciales.html', {
+                    'metodo': metodo,
+                    'herramientas_comunes': HERRAMIENTAS_COMUNES,
+                })
+            organizacion = request.POST.get('organizacion', '').strip()
+            descripcion = request.POST.get('descripcion', '').strip()
+            with transaction.atomic():
+                destino = Evaluacion.objects.create(
+                    usuario=request.user,
+                    nombre=nombre,
+                    software=software,
+                    organizacion=organizacion,
+                    descripcion=descripcion,
+                    metodo_importancia=metodo,
+                    estado='EN_PROCESO',
+                    paso_actual=2
+                )
+                if metodo == 'IA':
+                    try:
+                        sugerencias = generar_sugerencias(software, organizacion, descripcion, factores)
+                        for item in sugerencias:
+                            fid = item['id']
+                            factor = Factor.objects.get(pk=fid)
+                            sug = item['sugerida']
+                            just = item.get('justificacion', '')
+                            alc = item['alcance']
+                            # La Importancia Sugerida (IS) la determina Gemini según literatura técnica.
+                            # La Prioridad del Decisor (ID) queda pendiente (None) para que el evaluador la seleccione.
+                            # Los subfactores inician en blanco para que el evaluador humano audite y pondere cada uno en el Bloque 2
+                            vf = ValorFactor.objects.create(
+                                evaluacion=destino, factor=factor, sugerida=sug,
+                                justificacion_sugerida=just, decisor=None, relativa=None,
+                                alcance=alc
+                            )
+                        messages.success(request, f'✨ La IA analizó "{software}" y sugirió la Importancia Sugerida (IS) según la literatura técnica. Ahora seleccione su Prioridad (ID).')
+                    except Exception as exc:
+                        logger.warning('IA no disponible en creación inicial: %s', exc)
+                        for f in factores:
+                            ValorFactor.objects.create(
+                                evaluacion=destino, factor=f, sugerida=f.sugerida,
+                                justificacion_sugerida='Valor base de referencia del catálogo.',
+                                decisor=None, relativa=None,
+                                alcance=f.alcance if f.alcance != 'Ambos' else 'Interno'
+                            )
+                        messages.warning(request, f'Evaluación iniciada. No fue posible conectar con el Asistente de IA temporalmente ({exc}); se cargaron los valores base del catálogo.')
+                else:
+                    for f in factores:
+                        ValorFactor.objects.create(
+                            evaluacion=destino, factor=f, sugerida=f.sugerida,
+                            justificacion_sugerida='Valor de referencia del catálogo de la tesis.',
+                            decisor=None, relativa=None,
+                            alcance=f.alcance if f.alcance != 'Ambos' else 'Interno'
+                        )
+                    messages.success(request, 'Evaluación creada con los valores de referencia de la Tesis doctoral.')
+            return redirect('editar', pk=destino.pk)
+
+        # Si trae decisor_..., es la sumisión del formulario completo de evaluación
         try:
             finalizar = request.POST.get('accion', 'finalizar') == 'finalizar'
             nombre = request.POST.get('nombre', '').strip()
@@ -252,7 +333,7 @@ def informe_pdf(request, pk):
     guardado = ResultadoEvaluacion.objects.filter(evaluacion=ev).first()
     if guardado and guardado.justificacion_ia:
         content.append(Spacer(1, 12))
-        content.append(Paragraph('Justificación contextualizada con Gemini', styles['Heading2']))
+        content.append(Paragraph('Justificación contextualizada con Inteligencia Artificial', styles['Heading2']))
         for parrafo in guardado.justificacion_ia.split('\n'):
             if parrafo.strip():
                 content.append(Paragraph(xml_escape(parrafo), styles['Normal']))
@@ -276,10 +357,10 @@ def generar_ia(request, pk):
     ev = propia(request, pk)
     filas, grado, mensaje = analizar(ev)
     if not grado or ev.estado != 'FINALIZADA':
-        messages.error(request, 'Finalice la evaluación completa antes de consultar Gemini.')
+        messages.error(request, 'Finalice la evaluación completa antes de consultar la IA.')
         return redirect('resultado', pk=ev.pk)
     if not limite_ia(request.user):
-        messages.error(request, 'Alcanzó el límite de consultas a Gemini por hora. Inténtelo más tarde.')
+        messages.error(request, 'Alcanzó el límite de consultas a la IA por hora. Inténtelo más tarde.')
         return redirect('resultado', pk=ev.pk)
     try:
         texto = generar_justificacion(ev, filas, grado, mensaje)
@@ -289,7 +370,7 @@ def generar_ia(request, pk):
         resultado.modelo_ia = settings.GEMINI_MODEL
         resultado.fecha_ia = timezone.now()
         resultado.save(update_fields=['justificacion_ia', 'modelo_ia', 'fecha_ia'])
-        messages.success(request, 'Justificación generada con Gemini.')
+        messages.success(request, 'Justificación generada con Inteligencia Artificial.')
     except GeminiNoDisponible as error:
         messages.error(request, str(error))
     return redirect('resultado', pk=ev.pk)
@@ -313,7 +394,7 @@ def sugerir_ia(request):
     if not factores:
         return JsonResponse({'error': 'Primero importe o cree el catálogo de factores.'}, status=400)
     if not limite_ia(request.user):
-        return JsonResponse({'error': 'Alcanzó el límite de consultas a Gemini por hora.'}, status=429)
+        return JsonResponse({'error': 'Alcanzó el límite de consultas a la IA por hora.'}, status=429)
     try:
         sugerencias = generar_sugerencias(software, request.POST.get('organizacion', '').strip(),
                                           request.POST.get('descripcion', '').strip(), factores)

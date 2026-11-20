@@ -1,1 +1,32 @@
-{% if page.paginator.num_pages > 1 %}<div class="pager">{% if page.has_previous %}<a href="?{% if qs %}{{qs}}&amp;{% endif %}page={{page.previous_page_number}}">« Anterior</a>{% endif %}<span class="muted">Página {{page.number}} de {{page.paginator.num_pages}}</span>{% if page.has_next %}<a href="?{% if qs %}{{qs}}&amp;{% endif %}page={{page.next_page_number}}">Siguiente »</a>{% endif %}</div>{% endif %}
+{% if page.paginator.num_pages > 1 %}
+<div class="p-4 border-t border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+  <div>
+    Mostrando página <strong class="text-slate-900 font-semibold">{{ page.number }}</strong> de <strong class="text-slate-900 font-semibold">{{ page.paginator.num_pages }}</strong> (Total: {{ page.paginator.count }} registros)
+  </div>
+  <div class="flex items-center gap-1.5 font-medium">
+    {% if page.has_previous %}
+      <a href="?{% if qs %}{{qs}}&amp;{% endif %}page={{page.previous_page_number}}" class="px-3 py-1.5 border border-slate-300 rounded text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+        Anterior
+      </a>
+    {% else %}
+      <span class="px-3 py-1.5 border border-slate-200 rounded text-slate-400 bg-slate-100 cursor-not-allowed">
+        Anterior
+      </span>
+    {% endif %}
+
+    <span class="px-3 py-1.5 rounded bg-slate-900 text-white font-mono">
+      {{ page.number }}
+    </span>
+
+    {% if page.has_next %}
+      <a href="?{% if qs %}{{qs}}&amp;{% endif %}page={{page.next_page_number}}" class="px-3 py-1.5 border border-slate-300 rounded text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+        Siguiente
+      </a>
+    {% else %}
+      <span class="px-3 py-1.5 border border-slate-200 rounded text-slate-400 bg-slate-100 cursor-not-allowed">
+        Siguiente
+      </span>
+    {% endif %}
+  </div>
+</div>
+{% endif %}

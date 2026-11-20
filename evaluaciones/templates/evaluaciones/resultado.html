@@ -1,8 +1,549 @@
-{% extends 'evaluaciones/base.html' %}{% block content %}
-<p class="muted">Mis evaluaciones / {{ev.software}} / Dictamen final</p><h2>Resultados de evaluación y análisis FODA</h2><p class="muted">{{ev.organizacion}} · {{ev.software}} · {{ev.estado}}</p>
-<div class="steps"><div class="step">BLOQUE 1<strong>Filtro de relevancia</strong>Importancia y selección de factores</div><div class="step">BLOQUE 2<strong>Ponderación técnica</strong>Valoración de subfactores</div><div class="step active">BLOQUE 3<strong>Diagnóstico y dictamen</strong>Resultados y recomendación</div></div>
-<div class="kpis"><div class="kpi">Factores evaluados<strong>{{filas|length}}</strong></div><div class="kpi">Dictamen RN-07<strong>{% if grado %}{{grado}}{% else %}Pendiente{% endif %}</strong></div><div class="kpi">Estado<strong>{{ev.estado}}</strong></div></div>
-<div class="card"><h3>Matriz resumen de factores clave</h3><div class="tablewrap"><table><thead><tr><th>Factor</th><th>Dimensión</th><th>Importancia</th><th>Media</th><th>Alcance</th><th>FODA</th></tr></thead><tbody>{% for r in filas %}<tr><td>{{r.factor.nombre}}</td><td>{{r.factor.dimension.nombre}}</td><td>{{r.relativa}}</td><td>{{r.media|floatformat:2}}</td><td>{{r.alcance}}</td><td><b>{{r.foda}}</b></td></tr>{% empty %}<tr><td colspan="6">Complete los factores y subfactores.</td></tr>{% endfor %}</tbody></table></div></div>
-<div class="card"><h3>Matriz FODA ejecutiva</h3><div class="swot"><section><b>FORTALEZAS</b><ul>{% for r in filas %}{% if r.foda == 'Fortaleza' %}<li>{{r.factor.nombre}} ({{r.media}})</li>{% endif %}{% endfor %}</ul></section><section><b>OPORTUNIDADES</b><ul>{% for r in filas %}{% if r.foda == 'Oportunidad' %}<li>{{r.factor.nombre}} ({{r.media}})</li>{% endif %}{% endfor %}</ul></section><section class="negative"><b>DEBILIDADES</b><ul>{% for r in filas %}{% if r.foda == 'Debilidad' %}<li>{{r.factor.nombre}} ({{r.media}})</li>{% endif %}{% endfor %}</ul></section><section class="negative"><b>AMENAZAS</b><ul>{% for r in filas %}{% if r.foda == 'Amenaza' %}<li>{{r.factor.nombre}} ({{r.media}})</li>{% endif %}{% endfor %}</ul></section></div></div>
-<div class="card"><h3>Veredicto final: {% if grado == 'A' %}Adoptar{% elif grado == 'B' %}Adoptar con revisión{% elif grado == 'C' %}No adoptar hasta corregir{% else %}Evaluación pendiente{% endif %}</h3><div class="note">{{mensaje}}</div><h3>Justificación contextualizada con Google Gemini</h3>{% if resultado_guardado.justificacion_ia %}<div class="ai-box">{{resultado_guardado.justificacion_ia}}</div><p class="muted">Modelo: {{resultado_guardado.modelo_ia}} · Generado: {{resultado_guardado.fecha_ia}}</p>{% else %}<p class="muted">La explicación de IA aún no se ha generado. El dictamen anterior procede exclusivamente de RN-07.</p>{% endif %}{% if puede_editar and grado and ev.estado == 'FINALIZADA' %}<form method="post" action="{% url 'generar_ia' ev.pk %}">{% csrf_token %}<button type="submit">Generar justificación con Gemini</button></form>{% endif %}<div class="controls">{% if puede_editar %}{% if ev.estado == 'FINALIZADA' %}<form method="post" action="{% url 'nueva_version' ev.pk %}" style="display:inline">{% csrf_token %}<button type="submit" class="secondary">Crear nueva versión</button></form>{% else %}<a class="btn" href="{% url 'editar' ev.pk %}">Continuar evaluación</a>{% endif %}{% endif %}{% if grado %}<a class="btn" href="{% url 'informe_pdf' ev.pk %}">Exportar PDF</a>{% endif %}</div></div>
+{% extends 'evaluaciones/base.html' %}
+{% block title %}{{ ev.software }} — Dictamen y Matriz FODA — GUIOS PRO{% endblock %}
+
+{% block content %}
+<div class="space-y-6 pb-12">
+  <!-- Breadcrumb -->
+  <div class="flex items-center justify-between text-xs text-slate-500 pb-2 border-b border-slate-200">
+    <div class="flex items-center gap-2 text-sm">
+      <a href="{% url 'inicio' %}" class="text-slate-500 hover:text-slate-800 transition-colors">Mis evaluaciones</a>
+      <span class="text-slate-300">/</span>
+      <span class="text-slate-700 font-medium">{{ ev.software }}</span>
+      <span class="text-slate-300">/</span>
+      <span class="font-semibold text-slate-900">Dictamen Final y FODA</span>
+    </div>
+    <div class="flex items-center gap-2">
+      {% if ev.estado == 'FINALIZADA' %}
+        <span class="px-2.5 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+          Auditoría Oficial Finalizada
+        </span>
+      {% else %}
+        <span class="px-2.5 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+          En Proceso de Evaluación
+        </span>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Software Overview Card -->
+  <div class="bg-white rounded-md border border-slate-300 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-sm">
+    <div class="flex items-start gap-4">
+      <div class="w-12 h-12 rounded bg-slate-900 text-white flex items-center justify-center shrink-0 shadow">
+        <span class="material-symbols-outlined text-[26px]">terminal</span>
+      </div>
+      <div>
+        <div class="flex items-center gap-2.5 flex-wrap">
+          <h1 class="text-2xl font-bold tracking-tight text-slate-900 font-display">
+            {{ ev.software }}
+          </h1>
+          <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 font-mono">
+            {{ ev.nombre }}
+          </span>
+          {% if ev.origen_id %}
+            <span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-xs font-semibold border border-blue-200 font-mono">
+              Versión derivada #{{ ev.origen_id }}
+            </span>
+          {% endif %}
+        </div>
+        <div class="flex items-center gap-3 text-xs text-slate-500 mt-1 flex-wrap">
+          <span><strong class="text-slate-700">Organización:</strong> {{ ev.organizacion|default:"No especificada" }}</span>
+          <span>•</span>
+          <span><strong class="text-slate-700">Fecha de evaluación:</strong> {{ ev.fecha|date:'d M Y H:i' }} UTC</span>
+          <span>•</span>
+          <span><strong class="text-slate-700">Método IS:</strong> {% if ev.metodo_importancia == 'TESIS' %}Catálogo de la Tesis{% else %}Propuesta Asistida con IA{% endif %}</span>
+        </div>
+        {% if ev.descripcion %}
+          <p class="text-xs text-slate-600 mt-2 bg-slate-50 p-2.5 rounded border border-slate-200 leading-relaxed">
+            {{ ev.descripcion }}
+          </p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Quick Actions Header -->
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0">
+      {% if grado %}
+        <a href="{% url 'informe_pdf' ev.pk %}" class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-xs font-semibold transition-colors shadow-sm">
+          <span class="material-symbols-outlined text-[18px] text-slate-600">picture_as_pdf</span>
+          <span>Descargar Informe PDF</span>
+        </a>
+      {% endif %}
+
+      {% if puede_editar %}
+        {% if ev.estado == 'FINALIZADA' %}
+          <form method="post" action="{% url 'nueva_version' ev.pk %}" class="m-0 inline-block">
+            {% csrf_token %}
+            <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition-colors shadow-sm">
+              <span class="material-symbols-outlined text-[18px]">content_copy</span>
+              <span>Crear Nueva Versión</span>
+            </button>
+          </form>
+        {% else %}
+          <a href="{% url 'editar' ev.pk %}" class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded bg-[#047857] hover:bg-[#065f46] text-white text-xs font-semibold transition-colors shadow-sm">
+            <span class="material-symbols-outlined text-[18px]">edit</span>
+            <span>Continuar Evaluación</span>
+          </a>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Stepper Header -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="bg-white rounded-md p-4 border border-slate-200 flex items-center justify-between shadow-sm">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center font-bold text-xs">
+          <span class="material-symbols-outlined text-[16px]">check</span>
+        </div>
+        <div>
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono block">BLOQUE 1</span>
+          <span class="text-xs font-bold text-slate-800">Filtro de Relevancia</span>
+        </div>
+      </div>
+      <span class="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Completado</span>
+    </div>
+
+    <div class="bg-white rounded-md p-4 border border-slate-200 flex items-center justify-between shadow-sm">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center font-bold text-xs">
+          <span class="material-symbols-outlined text-[16px]">check</span>
+        </div>
+        <div>
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono block">BLOQUE 2</span>
+          <span class="text-xs font-bold text-slate-800">Ponderación Técnica</span>
+        </div>
+      </div>
+      <span class="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Completado</span>
+    </div>
+
+    <div class="bg-white rounded-md p-4 border-2 border-slate-900 flex items-center justify-between shadow-sm">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs">
+          3
+        </div>
+        <div>
+          <span class="text-[10px] font-bold text-slate-900 uppercase tracking-wider font-mono block">BLOQUE 3</span>
+          <span class="text-xs font-bold text-slate-900">Diagnóstico y Dictamen</span>
+        </div>
+      </div>
+      <span class="text-[10px] font-semibold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-300 font-mono">En Vista</span>
+    </div>
+  </div>
+
+  <!-- Executive Verdict Banner RN-07 -->
+  {% if grado == 'A' %}
+    <div class="rounded-md border-2 border-emerald-600 bg-emerald-50/70 p-6 shadow-sm">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex items-start gap-4">
+          <div class="w-12 h-12 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow">
+            <span class="material-symbols-outlined text-[28px]">verified</span>
+          </div>
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-800 font-mono">
+              Dictamen Oficial según RN-07
+            </span>
+            <h2 class="text-2xl font-bold text-emerald-950 font-display">
+              RECOMENDACIÓN A · ADOPTAR
+            </h2>
+            <p class="text-xs text-emerald-900 mt-1 leading-relaxed">
+              {{ mensaje }}
+            </p>
+          </div>
+        </div>
+        <div class="shrink-0 bg-white px-4 py-2.5 rounded border border-emerald-300 text-center">
+          <div class="text-[10px] font-bold uppercase text-slate-500 font-mono">Calificación RN-07</div>
+          <div class="text-3xl font-extrabold text-emerald-700 font-display">GRADO A</div>
+        </div>
+      </div>
+    </div>
+  {% elif grado == 'B' %}
+    <div class="rounded-md border-2 border-amber-500 bg-amber-50/70 p-6 shadow-sm">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex items-start gap-4">
+          <div class="w-12 h-12 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 shadow">
+            <span class="material-symbols-outlined text-[28px]">warning</span>
+          </div>
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-amber-800 font-mono">
+              Dictamen Oficial según RN-07
+            </span>
+            <h2 class="text-2xl font-bold text-amber-950 font-display">
+              RECOMENDACIÓN B · ADOPTAR CON CONDICIONES
+            </h2>
+            <p class="text-xs text-amber-900 mt-1 leading-relaxed">
+              {{ mensaje }}
+            </p>
+          </div>
+        </div>
+        <div class="shrink-0 bg-white px-4 py-2.5 rounded border border-amber-300 text-center">
+          <div class="text-[10px] font-bold uppercase text-slate-500 font-mono">Calificación RN-07</div>
+          <div class="text-3xl font-extrabold text-amber-600 font-display">GRADO B</div>
+        </div>
+      </div>
+    </div>
+  {% elif grado == 'C' %}
+    <div class="rounded-md border-2 border-red-600 bg-red-50/70 p-6 shadow-sm">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex items-start gap-4">
+          <div class="w-12 h-12 rounded-full bg-red-600 text-white flex items-center justify-center shrink-0 shadow">
+            <span class="material-symbols-outlined text-[28px]">gpp_bad</span>
+          </div>
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-red-800 font-mono">
+              Dictamen Oficial según RN-07
+            </span>
+            <h2 class="text-2xl font-bold text-red-950 font-display">
+              RECOMENDACIÓN C · NO ADOPTAR HASTA CORREGIR
+            </h2>
+            <p class="text-xs text-red-900 mt-1 leading-relaxed">
+              {{ mensaje }}
+            </p>
+          </div>
+        </div>
+        <div class="shrink-0 bg-white px-4 py-2.5 rounded border border-red-300 text-center">
+          <div class="text-[10px] font-bold uppercase text-slate-500 font-mono">Calificación RN-07</div>
+          <div class="text-3xl font-extrabold text-red-700 font-display">GRADO C</div>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="rounded-md border border-slate-300 bg-white p-6 shadow-sm">
+      <div class="flex items-center gap-3">
+        <span class="material-symbols-outlined text-amber-500 text-2xl">pending</span>
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Evaluación en proceso de análisis</h2>
+          <p class="text-xs text-slate-500">{{ mensaje }}</p>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- 3 KPIs -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="bg-white rounded-md p-5 border border-slate-300 shadow-sm flex flex-col justify-between">
+      <div class="flex items-center justify-between text-slate-500 mb-1">
+        <span class="text-xs font-semibold uppercase tracking-wider text-slate-600 font-mono">Factores Evaluados</span>
+        <span class="material-symbols-outlined text-[20px] text-slate-400">checklist</span>
+      </div>
+      <div class="text-2xl font-bold text-slate-900 font-display">
+        {{ filas|length }}
+      </div>
+      <div class="mt-2 text-xs text-slate-500">
+        Superan filtro de relevancia (RN-03)
+      </div>
+    </div>
+
+    <div class="bg-white rounded-md p-5 border border-slate-300 shadow-sm flex flex-col justify-between">
+      <div class="flex items-center justify-between text-slate-500 mb-1">
+        <span class="text-xs font-semibold uppercase tracking-wider text-slate-600 font-mono">Dictamen RN-07</span>
+        <span class="material-symbols-outlined text-[20px] text-emerald-600">policy</span>
+      </div>
+      <div class="text-2xl font-bold text-slate-900 font-display">
+        {% if grado %}Grado {{ grado }}{% else %}Pendiente{% endif %}
+      </div>
+      <div class="mt-2 text-xs text-slate-500">
+        Calculado deterministicamente por Django
+      </div>
+    </div>
+
+    <div class="bg-white rounded-md p-5 border border-slate-300 shadow-sm flex flex-col justify-between">
+      <div class="flex items-center justify-between text-slate-500 mb-1">
+        <span class="text-xs font-semibold uppercase tracking-wider text-slate-600 font-mono">Estado Actual</span>
+        <span class="material-symbols-outlined text-[20px] text-slate-400">task_alt</span>
+      </div>
+      <div class="text-2xl font-bold text-slate-900 font-display">
+        {{ ev.estado }}
+      </div>
+      <div class="mt-2 text-xs text-slate-500">
+        {% if ev.estado == 'FINALIZADA' %}Registro inmutable{% else %}Editable{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- SWOT / FODA 4-Quadrant Grid -->
+  <div class="space-y-3">
+    <div class="flex items-center justify-between">
+      <h2 class="text-base font-bold text-slate-900 font-display flex items-center gap-2">
+        <span class="material-symbols-outlined text-slate-600 text-[20px]">grid_view</span>
+        <span>Matriz FODA Ejecutiva (Dimensiones Internas y Externas)</span>
+      </h2>
+      <span class="text-xs text-slate-500 font-mono">Metodología GUIOSAD</span>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- FORTALEZAS -->
+      <div class="bg-white rounded-md border border-slate-300 border-t-4 border-t-emerald-600 p-5 shadow-sm space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-emerald-600 text-[20px]">check_circle</span>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-900 font-mono">Fortalezas (Internas)</h3>
+          </div>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+            Media ≥ 3.00
+          </span>
+        </div>
+        <ul class="divide-y divide-slate-100 text-xs">
+          {% for r in filas %}
+            {% if r.foda == 'Fortaleza' %}
+              <li class="py-2 flex items-center justify-between gap-3">
+                <span class="font-medium text-slate-800">{{ r.factor.nombre }}</span>
+                <span class="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[11px] shrink-0">
+                  {{ r.media|floatformat:2 }}
+                </span>
+              </li>
+            {% endif %}
+          {% empty %}
+            <li class="py-3 text-slate-400 italic">No se identificaron fortalezas.</li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <!-- OPORTUNIDADES -->
+      <div class="bg-white rounded-md border border-slate-300 border-t-4 border-t-sky-600 p-5 shadow-sm space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-sky-600 text-[20px]">trending_up</span>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-sky-900 font-mono">Oportunidades (Externas)</h3>
+          </div>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200">
+            Media ≥ 3.00
+          </span>
+        </div>
+        <ul class="divide-y divide-slate-100 text-xs">
+          {% for r in filas %}
+            {% if r.foda == 'Oportunidad' %}
+              <li class="py-2 flex items-center justify-between gap-3">
+                <span class="font-medium text-slate-800">{{ r.factor.nombre }}</span>
+                <span class="font-mono font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded text-[11px] shrink-0">
+                  {{ r.media|floatformat:2 }}
+                </span>
+              </li>
+            {% endif %}
+          {% empty %}
+            <li class="py-3 text-slate-400 italic">No se identificaron oportunidades.</li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <!-- DEBILIDADES -->
+      <div class="bg-white rounded-md border border-slate-300 border-t-4 border-t-amber-500 p-5 shadow-sm space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-amber-500 text-[20px]">warning</span>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-amber-900 font-mono">Debilidades (Internas)</h3>
+          </div>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+            Media < 3.00
+          </span>
+        </div>
+        <ul class="divide-y divide-slate-100 text-xs">
+          {% for r in filas %}
+            {% if r.foda == 'Debilidad' %}
+              <li class="py-2 flex items-center justify-between gap-3">
+                <span class="font-medium text-slate-800">{{ r.factor.nombre }}</span>
+                <span class="font-mono font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-[11px] shrink-0">
+                  {{ r.media|floatformat:2 }}
+                </span>
+              </li>
+            {% endif %}
+          {% empty %}
+            <li class="py-3 text-slate-400 italic">No se identificaron debilidades.</li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <!-- AMENAZAS -->
+      <div class="bg-white rounded-md border border-slate-300 border-t-4 border-t-red-600 p-5 shadow-sm space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-red-600 text-[20px]">shield_with_heart</span>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-red-900 font-mono">Amenazas (Externas)</h3>
+          </div>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-200">
+            Media < 3.00
+          </span>
+        </div>
+        <ul class="divide-y divide-slate-100 text-xs">
+          {% for r in filas %}
+            {% if r.foda == 'Amenaza' %}
+              <li class="py-2 flex items-center justify-between gap-3">
+                <span class="font-medium text-slate-800">{{ r.factor.nombre }}</span>
+                <span class="font-mono font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded text-[11px] shrink-0">
+                  {{ r.media|floatformat:2 }}
+                </span>
+              </li>
+            {% endif %}
+          {% empty %}
+            <li class="py-3 text-slate-400 italic">No se identificaron amenazas.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detailed Table Card -->
+  <div class="bg-white rounded-md border border-slate-300 shadow-sm overflow-hidden">
+    <div class="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-[18px] text-slate-600">table_chart</span>
+        <h3 class="text-sm font-bold text-slate-900">Matriz Detallada de Factores y Ponderaciones</h3>
+      </div>
+      <span class="text-xs text-slate-500 font-mono">{{ filas|length }} factores evaluados</span>
+    </div>
+
+    <div class="overflow-x-auto w-full">
+      <table class="w-full text-left border-collapse">
+        <thead class="bg-slate-50 text-[11px] font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200 font-mono">
+          <tr>
+            <th class="py-3 px-4">Factor</th>
+            <th class="py-3 px-4">Dimensión</th>
+            <th class="py-3 px-4">Importancia Relativa</th>
+            <th class="py-3 px-4">Media</th>
+            <th class="py-3 px-4">Alcance</th>
+            <th class="py-3 px-4">Clasificación FODA</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200 text-xs bg-white">
+          {% for r in filas %}
+          <tr class="hover:bg-slate-50/70 transition-colors">
+            <td class="py-3 px-4 font-semibold text-slate-900">
+              {{ r.factor.nombre }}
+            </td>
+            <td class="py-3 px-4 text-slate-600">
+              <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 text-[11px]">
+                {{ r.factor.dimension.nombre }}
+              </span>
+            </td>
+            <td class="py-3 px-4 font-mono font-medium text-slate-800">
+              {% if r.relativa == 4 %}4 · Fundamental{% elif r.relativa == 3 %}3 · Importante{% elif r.relativa == 2 %}2 · Opcional{% else %}1 · Irrelevante{% endif %}
+            </td>
+            <td class="py-3 px-4 font-mono font-bold text-slate-900">
+              {{ r.media|floatformat:2 }}
+            </td>
+            <td class="py-3 px-4 text-slate-600">
+              {{ r.alcance }}
+            </td>
+            <td class="py-3 px-4">
+              {% if r.foda == 'Fortaleza' %}
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                  Fortaleza
+                </span>
+              {% elif r.foda == 'Oportunidad' %}
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                  <span class="w-1.5 h-1.5 rounded-full bg-sky-600"></span>
+                  Oportunidad
+                </span>
+              {% elif r.foda == 'Debilidad' %}
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                  <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                  Debilidad
+                </span>
+              {% elif r.foda == 'Amenaza' %}
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200">
+                  <span class="w-1.5 h-1.5 rounded-full bg-red-600"></span>
+                  Amenaza
+                </span>
+              {% else %}
+                <span class="text-slate-400 font-mono">{{ r.foda|default:"Pendiente" }}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="p-6 text-center text-slate-500 text-xs">
+              Complete los factores y subfactores para calcular la matriz.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- AI Justification Card -->
+  <div class="bg-white rounded-md border border-slate-300 p-6 shadow-sm space-y-4">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded bg-gradient-to-tr from-emerald-600 to-sky-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+          ✨
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-slate-900 font-display">Justificación Contextualizada con Inteligencia Artificial</h3>
+          <p class="text-[11px] text-slate-500">Explicación técnica fundamentada en la matriz FODA y el dictamen obligatorio RN-07.</p>
+        </div>
+      </div>
+
+      {% if resultado_guardado.modelo_ia %}
+        <div class="flex items-center gap-2 text-xs font-mono text-slate-600 bg-slate-50 px-2.5 py-1 rounded border border-slate-200">
+          <span class="material-symbols-outlined text-[15px] text-emerald-600">smart_toy</span>
+          <span>Asistente de IA</span>
+          <span>•</span>
+          <span class="text-slate-400">{{ resultado_guardado.fecha_ia|date:'d/m/Y H:i' }}</span>
+        </div>
+      {% endif %}
+    </div>
+
+    {% if resultado_guardado.justificacion_ia %}
+      <div class="bg-slate-50/70 border-l-4 border-emerald-600 p-5 rounded-r text-xs text-slate-700 leading-relaxed space-y-3 whitespace-pre-line font-sans">
+        {{ resultado_guardado.justificacion_ia }}
+      </div>
+    {% else %}
+      <div class="p-4 bg-slate-50 border border-slate-200 rounded text-xs text-slate-600 flex items-center justify-between gap-4">
+        <div class="flex items-center gap-2.5">
+          <span class="material-symbols-outlined text-slate-400 text-[22px]">auto_awesome</span>
+          <span>La explicación redactada por IA aún no se ha generado. El dictamen superior procede 100% de la lógica determinista RN-07 de Django.</span>
+        </div>
+
+        {% if puede_editar and grado and ev.estado == 'FINALIZADA' %}
+          <form method="post" action="{% url 'generar_ia' ev.pk %}" class="m-0 shrink-0">
+            {% csrf_token %}
+            <button type="submit" class="px-3.5 py-2 bg-[#047857] hover:bg-[#065f46] text-white font-semibold text-xs rounded transition-colors flex items-center gap-2 shadow-sm">
+              <span>Generar con IA</span>
+              <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+            </button>
+          </form>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <!-- Bottom Controls -->
+    <div class="pt-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <a href="{% url 'inicio' %}" class="px-3.5 py-2 rounded border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-[16px]">arrow_back</span>
+          <span>Volver al Historial</span>
+        </a>
+
+        {% if grado %}
+          <a href="{% url 'informe_pdf' ev.pk %}" class="px-3.5 py-2 rounded border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-[16px] text-slate-600">download</span>
+            <span>Exportar PDF</span>
+          </a>
+        {% endif %}
+      </div>
+
+      <div class="flex items-center gap-2">
+        {% if puede_editar %}
+          {% if ev.estado == 'FINALIZADA' %}
+            <form method="post" action="{% url 'nueva_version' ev.pk %}" class="m-0">
+              {% csrf_token %}
+              <button type="submit" class="px-4 py-2 rounded bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition-colors flex items-center gap-2 shadow-sm">
+                <span class="material-symbols-outlined text-[16px]">copy_all</span>
+                <span>Crear Nueva Versión</span>
+              </button>
+            </form>
+          {% else %}
+            <a href="{% url 'editar' ev.pk %}" class="px-4 py-2 rounded bg-[#047857] hover:bg-[#065f46] text-white text-xs font-semibold transition-colors flex items-center gap-2 shadow-sm">
+              <span class="material-symbols-outlined text-[16px]">edit</span>
+              <span>Continuar Evaluación</span>
+            </a>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}

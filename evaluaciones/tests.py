@@ -225,6 +225,9 @@ class PermisosTests(TestCase):
     def test_anonimo_va_al_login(self):
         self.assertEqual(self.client.get(reverse('inicio')).status_code, 302)
         self.assertEqual(self.client.get(reverse('panel')).status_code, 302)
+        resp_landing = self.client.get(reverse('landing'))
+        self.assertEqual(resp_landing.status_code, 200)
+        self.assertContains(resp_landing, 'Evalúa software libre sin suposiciones')
 
     def test_admin_de_django_ya_no_existe(self):
         self.assertEqual(self.client.get('/admin/').status_code, 404)

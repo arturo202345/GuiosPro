@@ -1,1 +1,106 @@
-{% extends 'evaluaciones/base.html' %}{% block content %}<div class="card auth"><h2>Iniciar sesión</h2><form method="post">{% csrf_token %}{{form.as_p}}<button type="submit">Ingresar</button></form>{% if registro_abierto %}<p>¿No tienes cuenta? <a href="{% url 'registro' %}">Registrarse</a></p>{% endif %}</div>{% endblock %}
+{% extends 'evaluaciones/base.html' %}
+{% block title %}Iniciar Sesión — GUIOS PRO{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-md mx-auto">
+  <div class="bg-white rounded-md border border-slate-300 shadow-sm p-8">
+    <div class="mb-6">
+      <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1.5 font-mono">
+        Portal de Evaluación Multicriterio
+      </span>
+      <h1 class="text-2xl font-bold text-slate-900 tracking-tight font-display">
+        Acceso a GUIOSPRO
+      </h1>
+      <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+        Autenticación oficial para evaluadores y directores técnicos de infraestructura (Metodología GUIOSAD).
+      </p>
+    </div>
+
+    {% if form.errors %}
+      <div class="p-3 bg-red-50 border border-red-200 rounded text-xs text-red-700 mb-5 flex items-start gap-2">
+        <span class="material-symbols-outlined text-[18px] shrink-0 text-red-600">error</span>
+        <div>
+          <span class="font-semibold block">Error de credenciales</span>
+          <span>El usuario o contraseña ingresados son incorrectos. Verifique sus datos e intente nuevamente.</span>
+        </div>
+      </div>
+    {% endif %}
+
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1.5 font-mono" for="id_username">
+          Usuario
+        </label>
+        <div class="relative">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">
+            person
+          </span>
+          <input
+            type="text"
+            name="username"
+            id="id_username"
+            class="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 transition-all"
+            placeholder="Nombre de usuario"
+            required
+            autocomplete="username"
+            value="{{ form.username.value|default:'' }}"
+          >
+        </div>
+      </div>
+
+      <div>
+        <div class="flex items-center justify-between mb-1.5">
+          <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wide font-mono" for="id_password">
+            Contraseña
+          </label>
+        </div>
+        <div class="relative">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">
+            lock
+          </span>
+          <input
+            type="password"
+            name="password"
+            id="id_password"
+            class="w-full pl-9 pr-16 py-2 bg-white border border-slate-300 rounded text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 transition-all"
+            placeholder="Ingresa tu contraseña"
+            required
+            autocomplete="current-password"
+          >
+          <button
+            type="button"
+            onclick="const p = document.getElementById('id_password'); p.type = p.type === 'password' ? 'text' : 'password'; this.textContent = p.type === 'password' ? 'Mostrar' : 'Ocultar';"
+            class="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-500 hover:text-slate-800 px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 transition-colors"
+          >
+            Mostrar
+          </button>
+        </div>
+      </div>
+
+      <div class="pt-2">
+        <button
+          type="submit"
+          class="w-full py-2.5 px-4 bg-[#047857] hover:bg-[#065f46] text-white text-sm font-semibold rounded transition-colors flex items-center justify-center gap-2 shadow-sm"
+        >
+          <span>Ingresar a la Plataforma</span>
+          <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+        </button>
+        <p class="text-[11px] text-center text-slate-400 mt-2.5 flex items-center justify-center gap-1.5">
+          <span class="material-symbols-outlined text-[14px] text-slate-400">lock</span>
+          Conexión segura institucional
+        </p>
+      </div>
+    </form>
+
+    {% if registro_abierto %}
+    <div class="mt-6 pt-5 border-t border-slate-200 text-center">
+      <a class="text-xs text-slate-600 hover:text-slate-900 font-medium transition-colors" href="{% url 'registro' %}">
+        ¿No dispone de credenciales? <span class="text-emerald-700 font-semibold hover:underline">Registrarse como Evaluador</span>
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

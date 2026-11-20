@@ -1,58 +1,1255 @@
-{% extends 'evaluaciones/base.html' %}{% block content %}
-<h2>{% if ev %}Continuar evaluación{% else %}Nueva evaluación{% endif %} · GUIOS PRO</h2>
-<p class="muted">Guía de adopción de software libre y código abierto. Complete las etapas para obtener la matriz FODA.</p>
-<form method="post" id="evaluacionForm">{% csrf_token %}
-<div class="card grid"><label>Nombre de evaluación<input name="nombre" required value="{{ev.nombre|default:''}}"></label><label>Organización<input name="organizacion" value="{{ev.organizacion|default:''}}"></label><label>Software FLOSS<input name="software" required value="{{ev.software|default:''}}"></label></div>
-<div class="card"><label>Descripción<textarea name="descripcion" rows="2">{{ev.descripcion|default:''}}</textarea></label></div>
-<div class="card"><button type="button" id="autocompletarIA" class="secondary">✨ Autocompletar con Gemini</button> <span id="estadoIA" class="muted" role="status" aria-live="polite">Gemini propondrá importancias y cumplimiento. Revise todos los datos antes de guardar.</span></div>
-<div class="note">Método de importancia sugerida para esta evaluación: <strong>{% if metodo == "TESIS" %}Metodología de la tesis{% else %}Gemini IA{% endif %}</strong>. La selección la realiza el administrador.</div>
-<nav class="tabs"><button type="button" class="tab active" data-tab="paso1">1–2 · Factores</button><button type="button" class="tab" data-tab="paso2">3–4 · Subfactores</button><button type="button" class="tab" data-tab="paso3">5–6 · FODA</button></nav>
-<section class="panel active card" id="paso1"><h3>Obtención de factores relevantes</h3><p>Importancia relativa = matriz de combinación IS e ID definida en la tesis. Los factores con resultado 1 no se evalúan.</p><div class="tablewrap"><table><thead><tr><th>Dimensión / Factor</th><th>Sugerida</th><th>Importancia del decisor</th><th>Relativa</th><th>Alcance</th></tr></thead><tbody>
-{% for f in factores %}<tr class="frow" data-factor="{{f.id}}" data-sugerida="{{f.sugerida_actual}}"><td><strong>{{f.nombre}}</strong><div class="muted">{{f.dimension.nombre}}</div></td><td><select name="sugerida_{{f.id}}" class="suggested-range" required {% if metodo == "TESIS" %}disabled{% endif %} aria-label="Importancia sugerida de {{f.nombre}}">{% for n,desc in niveles %}<option value="{{n}}" {% if f.sugerida_actual == n %}selected{% endif %}>{{n}} · {{desc}}</option>{% endfor %}</select>{% if metodo == "TESIS" %}<input type="hidden" name="sugerida_{{f.id}}" value="{{f.sugerida_actual}}">{% endif %}<input type="hidden" name="justificacion_{{f.id}}" class="suggestion-reason" value="{{f.justificacion_actual}}"><small class="muted suggestion-explanation">{{f.justificacion_actual}}</small></td><td><select name="decisor_{{f.id}}" class="factor-range" required><option value="">Seleccione</option>{% for n,desc in niveles %}<option value="{{n}}" {% if f.valor_actual == n %}selected{% endif %}>{{n}} · {{desc}}</option>{% endfor %}</select></td><td><output class="relativa-label">Pendiente</output></td><td>{% if f.alcance == 'Ambos' %}<select name="alcance_{{f.id}}" class="scope"><option value="">Seleccione alcance</option><option value="Interno" {% if f.alcance_actual == 'Interno' %}selected{% endif %}>Interno</option><option value="Externo" {% if f.alcance_actual == 'Externo' %}selected{% endif %}>Externo</option></select>{% else %}<span>{{f.alcance}}</span><input type="hidden" name="alcance_{{f.id}}" class="scope" value="{{f.alcance}}">{% endif %}</td></tr>{% endfor %}
-</tbody></table></div><div class="controls"><button type="button" data-next="paso2">Continuar</button></div></section>
-<section class="panel card" id="paso2"><h3>Ponderación de subfactores</h3><p>1 = No cumple · 2 = Desconozco · 3 = Cumple parcialmente · 4 = Cumple. El valor 2 también cuenta en el promedio.</p><label>Factor relevante<select id="factorSelect"></select></label>
-{% for f in factores %}<div class="subgroup hidden" data-group="{{f.id}}"><h3>{{f.nombre}}</h3><div class="tablewrap"><table><thead><tr><th>Subfactor</th><th>Cumplimiento</th></tr></thead><tbody>{% for s in f.subfactores.all %}{% if s.activo %}<tr><td>{{s.nombre}}</td><td><select name="sub_{{s.id}}" class="sub-range"><option value="">Seleccione</option>{% for n,desc in subniveles %}<option value="{{n}}" {% if s.valor_actual == n %}selected{% endif %}>{{n}} · {{desc}}</option>{% endfor %}</select></td></tr>{% endif %}{% endfor %}</tbody></table></div><p>Media: <strong class="media-label">Pendiente</strong></p></div>{% endfor %}
-<div class="controls"><button type="button" class="secondary" data-next="paso1">Anterior</button><button type="submit" name="accion" value="borrador" class="secondary">Guardar progreso</button><button type="button" data-next="paso3">Ver FODA</button></div></section>
-<section class="panel card" id="paso3"><h3>Matriz FODA y recomendación</h3><div class="tablewrap"><table><thead><tr><th>Factor</th><th>Importancia</th><th>Media</th><th>Alcance</th><th>Clasificación</th></tr></thead><tbody id="fodaPreview"></tbody></table></div><div class="note" id="recomendacionPreview"></div><div class="controls"><button type="button" class="secondary" data-next="paso2">Anterior</button><button type="submit" name="accion" value="borrador" class="secondary">Guardar progreso</button><button type="submit" name="accion" value="finalizar">Finalizar evaluación</button></div></section></form>
+{% extends 'evaluaciones/base.html' %}
+{% block title %}{% if ev %}Editar {{ ev.software }}{% else %}Nueva Evaluación FLOSS{% endif %} — GUIOS PRO{% endblock %}
+
+{% block content %}
+<div class="space-y-6 pb-16">
+  <!-- Breadcrumbs & Status -->
+  <div class="flex items-center justify-between text-xs text-slate-500 pb-2 border-b border-slate-200">
+    <div class="flex items-center gap-2 text-sm">
+      <a href="{% url 'inicio' %}" class="text-slate-500 hover:text-slate-800 transition-colors">Mis evaluaciones</a>
+      <span class="text-slate-300">/</span>
+      <span class="font-semibold text-slate-900">
+        {% if ev %}{{ ev.software }} (Continuar){% else %}Nueva evaluación multicriterio{% endif %}
+      </span>
+    </div>
+    <span class="px-2.5 py-1 rounded border border-slate-200 bg-white text-slate-700 text-xs font-semibold flex items-center gap-2 font-mono">
+      <span class="w-2 h-2 rounded-full bg-[#047857]"></span>
+      En evaluación activa
+    </span>
+  </div>
+
+  <form method="post" id="evaluacionForm" class="space-y-6">
+    {% csrf_token %}
+
+    <!-- Top Metadata Card -->
+    {% if ev %}
+    <!-- Resumen de Solo Lectura del Expediente Activo -->
+    <div class="bg-white rounded-md border border-slate-300 p-5 shadow-sm space-y-4">
+      <!-- Hidden inputs para conservar los metadatos en los POST -->
+      <input type="hidden" name="nombre" value="{{ ev.nombre }}">
+      <input type="hidden" name="software" value="{{ ev.software }}">
+      <input type="hidden" name="organizacion" value="{{ ev.organizacion|default:'' }}">
+      <input type="hidden" name="descripcion" value="{{ ev.descripcion|default:'' }}">
+
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-200">
+        <div class="flex items-center gap-3">
+          <a
+            href="{% url 'inicio' %}"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded transition-colors shadow-2xs"
+            title="Volver a la lista de evaluaciones"
+          >
+            <span class="material-symbols-outlined text-[16px]">arrow_back</span>
+            <span>Volver a mis evaluaciones</span>
+          </a>
+          <div class="flex items-center gap-2">
+            <span class="px-2.5 py-1 rounded bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-mono font-bold flex items-center gap-1.5 shadow-2xs">
+              <span class="material-symbols-outlined text-[15px] text-emerald-700">terminal</span>
+              {{ ev.software }}
+            </span>
+            <span class="text-xs text-slate-400 font-mono">·</span>
+            <span class="text-xs text-slate-500 font-medium font-mono">ID #{{ ev.pk }}</span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 shrink-0">
+          <span class="text-xs text-slate-500 font-medium">Método de Importancia:</span>
+          <span class="px-2.5 py-1 rounded text-xs font-bold font-mono {% if metodo == 'TESIS' %}bg-slate-100 text-slate-800 border border-slate-300{% else %}bg-purple-50 text-purple-800 border border-purple-200{% endif %}">
+            {% if metodo == 'TESIS' %}Metodología Tesis (Ref. Fija){% else %}✨ Propuesta Asistida con IA{% endif %}
+          </span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+        <div class="bg-slate-50 p-3 rounded border border-slate-200">
+          <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block font-mono">Nombre de la Evaluación</span>
+          <span class="font-bold text-slate-900 text-sm mt-0.5 block truncate" title="{{ ev.nombre }}">{{ ev.nombre }}</span>
+        </div>
+        <div class="bg-slate-50 p-3 rounded border border-slate-200">
+          <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block font-mono">Organización / Entorno</span>
+          <span class="font-semibold text-slate-800 text-sm mt-0.5 block truncate" title="{{ ev.organizacion }}">{{ ev.organizacion|default:"No especificada" }}</span>
+        </div>
+        <div class="bg-slate-50 p-3 rounded border border-slate-200">
+          <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block font-mono">Contexto Operacional</span>
+          <span class="text-slate-700 italic block mt-0.5 line-clamp-2" title="{{ ev.descripcion }}">{{ ev.descripcion|default:"Sin descripción complementaria." }}</span>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="bg-white rounded-md border border-slate-300 p-6 shadow-sm space-y-4">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-200">
+        <div>
+          <h1 class="text-xl font-bold tracking-tight text-slate-900 font-display">
+            Datos Generales del Software a Evaluar
+          </h1>
+          <p class="text-xs text-slate-500 mt-0.5">
+            Defina el identificador de la evaluación, el paquete FLOSS y la organización destinataria.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2 shrink-0">
+          <span class="text-xs text-slate-600 font-medium">Método de Importancia:</span>
+          <span class="px-2.5 py-1 rounded text-xs font-bold font-mono {% if metodo == 'TESIS' %}bg-slate-100 text-slate-800 border border-slate-300{% else %}bg-purple-50 text-purple-800 border border-purple-200{% endif %}">
+            {% if metodo == 'TESIS' %}Metodología de la Tesis (Ref. Fija){% else %}✨ Propuesta Asistida con IA{% endif %}
+          </span>
+        </div>
+      </div>
+
+      <!-- Form Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1 font-mono">
+            Nombre de la Evaluación <span class="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            name="nombre"
+            required
+            value="{{ ev.nombre|default:'' }}"
+            placeholder="Ej: Auditoría Postgres Producción"
+            class="w-full px-3 py-2 bg-white border border-slate-300 rounded text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 transition-all"
+          >
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1 font-mono">
+            Software FLOSS / Dependencia <span class="text-red-500">*</span>
+          </label>
+          <div class="relative">
+            <span class="material-symbols-outlined text-[18px] text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2">
+              terminal
+            </span>
+            <input
+              type="text"
+              name="software"
+              required
+              value="{{ ev.software|default:'' }}"
+              placeholder="Ej: PostgreSQL 16 / Nextcloud"
+              class="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 transition-all font-semibold"
+            >
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1 font-mono">
+            Organización / Entorno
+          </label>
+          <input
+            type="text"
+            name="organizacion"
+            value="{{ ev.organizacion|default:'' }}"
+            placeholder="Ej: Departamento de TI / Universidad"
+            class="w-full px-3 py-2 bg-white border border-slate-300 rounded text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 transition-all"
+          >
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1 font-mono">
+          Contexto Operacional y Descripción
+        </label>
+        <textarea
+          name="descripcion"
+          rows="2"
+          placeholder="Describa el objetivo de la adopción, criticidad del servicio y requerimientos particulares..."
+          class="w-full px-3 py-2 bg-white border border-slate-300 rounded text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 transition-all"
+        >{{ ev.descripcion|default:'' }}</textarea>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Stepper Navigation Header -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <button
+        type="button"
+        class="tab text-left bg-white rounded-md p-5 border-2 border-slate-900 shadow-sm flex flex-col justify-between transition-all active"
+        data-tab="paso1"
+      >
+        <div class="flex items-center justify-between w-full mb-2">
+          <span class="px-2 py-0.5 rounded bg-slate-900 text-white text-[10px] font-bold uppercase font-mono">
+            BLOQUE 1
+          </span>
+          <span class="w-6 h-6 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center font-bold text-xs">
+            1
+          </span>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-slate-900 font-display">Filtro de Relevancia</h3>
+          <p class="text-xs text-slate-500 mt-0.5">Importancia y selección de factores (RN-03)</p>
+        </div>
+      </button>
+
+      <button
+        type="button"
+        class="tab text-left bg-white rounded-md p-5 border border-slate-300 shadow-sm flex flex-col justify-between transition-all opacity-80 hover:opacity-100"
+        data-tab="paso2"
+      >
+        <div class="flex items-center justify-between w-full mb-2">
+          <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold uppercase font-mono">
+            BLOQUE 2
+          </span>
+          <span class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 border border-slate-200 flex items-center justify-center font-bold text-xs">
+            2
+          </span>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-slate-800 font-display">Ponderación Técnica</h3>
+          <p class="text-xs text-slate-500 mt-0.5">Valoración de cumplimiento de subfactores</p>
+        </div>
+      </button>
+
+      <button
+        type="button"
+        class="tab text-left bg-white rounded-md p-5 border border-slate-300 shadow-sm flex flex-col justify-between transition-all opacity-80 hover:opacity-100"
+        data-tab="paso3"
+      >
+        <div class="flex items-center justify-between w-full mb-2">
+          <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold uppercase font-mono">
+            BLOQUE 3
+          </span>
+          <span class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 border border-slate-200 flex items-center justify-center font-bold text-xs">
+            3
+          </span>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-slate-800 font-display">Diagnóstico y FODA</h3>
+          <p class="text-xs text-slate-500 mt-0.5">Matriz de decisión y dictamen RN-07</p>
+        </div>
+      </button>
+    </div>
+
+    <!-- PANEL PASO 1: Factores Relevantes -->
+    <section class="panel active space-y-4" id="paso1">
+      <div class="bg-white rounded-md border border-slate-300 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 class="text-sm font-bold text-slate-900 font-display">
+              Obtención de Factores Relevantes (RN-03)
+            </h2>
+            <p class="text-xs text-slate-600 mt-0.5">
+              La importancia relativa (IR) combina la importancia sugerida por la literatura (IS) y la prioridad de su organización (ID).
+            </p>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="px-2.5 py-1 rounded bg-slate-100 text-slate-700 text-xs font-mono font-semibold border border-slate-200">
+              {{ factores|length }} Factores del Catálogo
+            </span>
+          </div>
+        </div>
+
+        <!-- Banner Explicativo de UX -->
+        <div class="p-4 bg-emerald-50/50 border-b border-emerald-100">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 w-full text-xs">
+            <div class="flex items-start gap-2.5 bg-white p-3 rounded-lg border border-emerald-200 shadow-2xs">
+              <span class="material-symbols-outlined text-emerald-800 text-[20px] shrink-0">business</span>
+              <div>
+                <span class="font-bold text-slate-900 block">1. Tu Prioridad - Decisor (ID)</span>
+                <span class="text-slate-600 text-[11px] leading-tight block mt-0.5">
+                  <strong>Lo que tú defines.</strong> Selecciona el nivel de importancia (1 a 4) según las necesidades operativas de tu organización.
+                </span>
+              </div>
+            </div>
+            <div class="flex items-start gap-2.5 bg-white p-3 rounded-lg border border-emerald-200 shadow-2xs">
+              <span class="material-symbols-outlined text-emerald-800 text-[20px] shrink-0">menu_book</span>
+              <div>
+                <span class="font-bold text-slate-900 block">2. Importancia Sugerida (IS)</span>
+                <span class="text-slate-600 text-[11px] leading-tight block mt-0.5">
+                  <strong>Referencia / Solo lectura.</strong> Benchmark de literatura técnica ({% if metodo == "TESIS" %}Tesis doctoral 2022{% else %}Analizado con IA{% endif %}).
+                </span>
+              </div>
+            </div>
+            <div class="flex items-start gap-2.5 bg-white p-3 rounded-lg border border-emerald-200 shadow-2xs">
+              <span class="material-symbols-outlined text-emerald-800 text-[20px] shrink-0">balance</span>
+              <div>
+                <span class="font-bold text-slate-900 block">3. Impacto Relativo (IR)</span>
+                <span class="text-slate-600 text-[11px] leading-tight block mt-0.5">
+                  <strong>Cálculo matemático.</strong> Cruza ambas según la matriz formal de la tesis. Si resulta <strong>1 (Irrelevante)</strong> se descarta.
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Barra de Progreso de Relevancia (Bloque 1) -->
+        <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-emerald-700 text-[18px]">fact_check</span>
+            <span class="font-semibold text-slate-800">Progreso de Relevancia:</span>
+            <span id="progresoB1Texto" class="font-mono font-bold text-slate-900">0 / {{ factores|length }} definidos</span>
+          </div>
+          <div class="flex items-center gap-2.5 w-full sm:w-72">
+            <div class="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+              <div id="progresoB1Barra" class="bg-emerald-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <span id="progresoB1Pct" class="font-mono font-bold text-[11px] text-slate-700 w-10 text-right">0%</span>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto w-full">
+          <table class="w-full text-left border-collapse">
+            <thead class="bg-slate-50 text-[11px] font-semibold text-slate-600 uppercase tracking-wider border-b border-slate-200 font-mono">
+              <tr>
+                <th class="py-3 px-4 min-w-[260px]">
+                  <span>Factor a Evaluar</span>
+                  <span class="block text-[10px] font-normal text-slate-400 normal-case">Dimensión y criterio</span>
+                </th>
+                <th class="py-3 px-4 min-w-[200px]">
+                  <span class="text-slate-900 font-bold">Tu Prioridad - Decisor (ID)</span>
+                  <span class="block text-[10px] font-normal text-emerald-700 normal-case">Seleccione para su organización</span>
+                </th>
+                <th class="py-3 px-4 min-w-[220px]">
+                  <span class="text-slate-800 font-bold">Importancia Sugerida (IS)</span>
+                  <span class="block text-[10px] font-normal text-slate-500 normal-case">
+                    {% if metodo == 'TESIS' %}Catálogo de Tesis (Fijo){% else %}Literatura técnica / Asistente IA{% endif %}
+                  </span>
+                </th>
+                <th class="py-3 px-4 min-w-[150px]">
+                  <span>Impacto (IR)</span>
+                  <span class="block text-[10px] font-normal text-slate-400 normal-case">Cálculo de Matriz</span>
+                </th>
+                <th class="py-3 px-4 min-w-[130px]">
+                  <span>Alcance</span>
+                  <span class="block text-[10px] font-normal text-slate-400 normal-case">Interno / Externo</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 text-xs bg-white">
+              {% for f in factores %}
+              <tr class="frow hover:bg-slate-50/70 transition-colors" data-factor="{{ f.id }}" data-sugerida="{{ f.sugerida_actual }}">
+                <!-- Nombre y Dimension -->
+                <td class="py-3.5 px-4">
+                  <div class="font-bold text-slate-900 text-sm">
+                    {{ f.nombre }}
+                  </div>
+                  <div class="text-[11px] text-slate-500 font-mono mt-0.5">
+                    {{ f.dimension.nombre }}
+                  </div>
+                  {% if f.descripcion %}
+                    <div class="mt-2 p-2.5 rounded-md bg-emerald-50/70 border border-emerald-200/80 text-xs text-slate-800">
+                      <span class="text-[10px] uppercase font-mono font-bold text-emerald-900 flex items-center gap-1 mb-0.5">
+                        <span class="material-symbols-outlined text-[14px]">help</span>
+                        Pregunta orientativa:
+                      </span>
+                      <span class="italic font-medium leading-relaxed">{{ f.descripcion }}</span>
+                    </div>
+                  {% endif %}
+                </td>
+
+                <!-- Decisor (ID) -->
+                <td class="py-3.5 px-4">
+                  <select
+                    name="decisor_{{ f.id }}"
+                    class="factor-range w-full py-1.5 px-2 bg-white border border-slate-300 rounded text-xs text-slate-800 font-semibold focus:outline-none focus:border-emerald-700 shadow-2xs"
+                    required
+                  >
+                    <option value="">Seleccione valor</option>
+                    {% for n, desc in niveles %}
+                      <option value="{{ n }}" {% if f.valor_actual == n %}selected{% endif %}>
+                        {{ n }} · {{ desc }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </td>
+
+                <!-- Sugerida (IS) (Solo lectura / Badge con input hidden) -->
+                <td class="py-3.5 px-4">
+                  <div class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-slate-50 border border-slate-200 text-slate-800 text-xs font-semibold w-full shadow-2xs">
+                    <span class="material-symbols-outlined text-[16px] text-emerald-700 shrink-0">menu_book</span>
+                    <span class="suggested-label">
+                      {% for n, desc in niveles %}
+                        {% if f.sugerida_actual == n %}{{ n }} · {{ desc }}{% endif %}
+                      {% endfor %}
+                    </span>
+                  </div>
+                  <input type="hidden" name="sugerida_{{ f.id }}" class="suggested-range" value="{{ f.sugerida_actual }}">
+                  <input type="hidden" name="justificacion_{{ f.id }}" class="suggestion-reason" value="{{ f.justificacion_actual }}">
+                  <div class="text-[11px] text-slate-500 mt-1.5 leading-snug flex items-start gap-1 suggestion-container {% if not f.justificacion_actual %}hidden{% endif %}">
+                    <span class="material-symbols-outlined text-[13px] text-emerald-700 shrink-0 mt-0.5">auto_awesome</span>
+                    <span class="suggestion-explanation italic text-slate-600">{{ f.justificacion_actual }}</span>
+                  </div>
+                </td>
+
+                <!-- Relativa Output -->
+                <td class="py-3.5 px-4">
+                  <output class="relativa-label inline-flex items-center px-2.5 py-1 rounded text-xs font-bold font-mono bg-slate-100 text-slate-600 border border-slate-200">
+                    Pendiente
+                  </output>
+                </td>
+
+                <!-- Alcance -->
+                <td class="py-3.5 px-4">
+                  {% if f.alcance == 'Ambos' %}
+                    <select name="alcance_{{ f.id }}" class="scope w-full py-1.5 px-2 bg-white border border-slate-300 rounded text-xs text-slate-800 font-medium focus:outline-none focus:border-emerald-700 shadow-2xs">
+                      <option value="">Seleccione</option>
+                      <option value="Interno" {% if f.alcance_actual == 'Interno' %}selected{% endif %}>Interno</option>
+                      <option value="Externo" {% if f.alcance_actual == 'Externo' %}selected{% endif %}>Externo</option>
+                    </select>
+                  {% else %}
+                    <span class="inline-block px-2.5 py-1 rounded text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 font-mono shadow-2xs">
+                      {{ f.alcance }}
+                    </span>
+                    <input type="hidden" name="alcance_{{ f.id }}" class="scope" value="{{ f.alcance }}">
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+          <span class="text-xs text-slate-500 font-mono">Paso 1 de 3: Selección y Relevancia</span>
+          <button type="button" data-next="paso2" class="px-4 py-2 bg-[#047857] hover:bg-[#065f46] text-white text-xs font-semibold rounded transition-colors flex items-center gap-1.5 shadow-sm">
+            <span>Continuar a Subfactores</span>
+            <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL PASO 2: Subfactores (Navegación Master-Detail & Segmented Pills) -->
+    <section class="panel space-y-4 hidden" id="paso2">
+      <div class="bg-white rounded-md border border-slate-300 p-6 shadow-sm space-y-5">
+        <div class="pb-3 border-b border-slate-200">
+          <h2 class="text-base font-bold text-slate-900 font-display">
+            Ponderación Técnica de Subfactores (Bloque 2)
+          </h2>
+          <p class="text-xs text-slate-600 mt-0.5">
+            Escala de cumplimiento: <strong>1 = No cumple</strong> · <strong>2 = Desconozco</strong> · <strong>3 = Cumple parcialmente</strong> · <strong>4 = Cumple</strong>. Seleccione cada valoración con 1 solo clic.
+          </p>
+        </div>
+
+        <!-- Master-Detail Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+          <!-- Columna Izquierda: Master Navigation Sidebar -->
+          <div class="lg:col-span-4 bg-slate-50 border border-slate-300 rounded-lg p-4 space-y-3 lg:sticky lg:top-4">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+              <div>
+                <h3 class="text-xs font-bold text-slate-900 font-display uppercase tracking-wide">
+                  Factores a Evaluar
+                </h3>
+                <p class="text-[11px] text-slate-500">Filtrados por Relevancia (IR &gt; 1)</p>
+              </div>
+              <span id="badgeRelevantesCount" class="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-emerald-100 text-emerald-800 border border-emerald-200">
+                0 Factores
+              </span>
+            </div>
+
+            <!-- Barra de progreso de subfactores de Bloque 2 -->
+            <div class="space-y-1">
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="text-slate-600 font-medium">Progreso Técnico:</span>
+                <span id="progresoB2Texto" class="font-mono font-bold text-slate-800">0%</span>
+              </div>
+              <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                <div id="progresoB2Barra" class="bg-emerald-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <!-- Lista interactiva de Factores -->
+            <div id="factorNavList" class="space-y-1.5 max-h-[500px] overflow-y-auto pr-1">
+              <!-- Se puebla dinámicamente -->
+            </div>
+
+            <!-- Hidden select para retrocompatibilidad total con tests/scripts -->
+            <select id="factorSelect" class="hidden"></select>
+          </div>
+
+          <!-- Columna Derecha: Detail Subgroup Container -->
+          <div class="lg:col-span-8 bg-white border border-slate-300 rounded-lg p-5 space-y-5 shadow-2xs min-h-[420px]">
+            {% for f in factores %}
+            <div class="subgroup hidden space-y-5" data-group="{{ f.id }}">
+              <!-- Header del Factor Activo -->
+              <div class="bg-gradient-to-r from-slate-50 via-emerald-50/20 to-slate-50 p-4 rounded-lg border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="space-y-1">
+                  <span class="text-[10px] font-bold uppercase tracking-wider font-mono text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-200 inline-block">
+                    {{ f.dimension.nombre }}
+                  </span>
+                  <h3 class="text-base font-bold text-slate-900 font-display">
+                    {{ f.nombre }}
+                  </h3>
+                  {% if f.descripcion %}
+                  <p class="text-xs text-slate-600 italic leading-relaxed">{{ f.descripcion }}</p>
+                  {% endif %}
+                </div>
+                <div class="shrink-0 text-right bg-white px-3 py-2 rounded-md border border-slate-200 shadow-2xs">
+                  <span class="text-[10px] text-slate-500 uppercase tracking-wide block font-mono">Promedio Factor</span>
+                  <strong class="media-label text-base font-bold font-mono text-emerald-700">Pendiente</strong>
+                </div>
+              </div>
+
+              <!-- Lista de Subfactores con Segmented Pills (1 clic) -->
+              <div class="space-y-4 divide-y divide-slate-100">
+                {% for s in f.subfactores.all %}
+                  {% if s.activo %}
+                  <div class="pt-4 first:pt-0 space-y-2.5">
+                    <div class="space-y-1">
+                      <h4 class="text-xs font-bold text-slate-900 leading-snug">{{ s.nombre }}</h4>
+                      {% if s.descripcion %}
+                      <div class="p-2 rounded bg-slate-50 border border-slate-200 text-[11px] text-slate-700 italic flex items-start gap-1.5 leading-relaxed">
+                        <span class="material-symbols-outlined text-[14px] text-emerald-700 shrink-0 mt-0.5">help</span>
+                        <span>{{ s.descripcion }}</span>
+                      </div>
+                      {% endif %}
+                    </div>
+
+                    <!-- Segmented Pills para calificación rápida 1-clic -->
+                    <div class="subfactor-rating" data-sub="{{ s.id }}">
+                      <input
+                        type="hidden"
+                        name="sub_{{ s.id }}"
+                        id="sub_input_{{ s.id }}"
+                        class="sub-range"
+                        value="{{ s.valor_actual|default:'' }}"
+                      >
+                      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {% for n, desc in subniveles %}
+                        <button
+                          type="button"
+                          class="sub-pill px-3 py-2 rounded-md border text-xs font-semibold transition-all flex flex-col items-center justify-center gap-0.5 text-center cursor-pointer {% if s.valor_actual == n %}active bg-emerald-700 text-white border-emerald-700 shadow-sm ring-1 ring-emerald-700{% else %}bg-white text-slate-700 border-slate-300 hover:bg-slate-50 hover:border-slate-400{% endif %}"
+                          data-val="{{ n }}"
+                          data-sub="{{ s.id }}"
+                        >
+                          <span class="font-mono font-bold text-xs">{{ n }}</span>
+                          <span class="text-[10px] leading-tight">{{ desc }}</span>
+                        </button>
+                        {% endfor %}
+                      </div>
+                    </div>
+                  </div>
+                  {% endif %}
+                {% endfor %}
+              </div>
+
+              <!-- Footer de navegación entre factores -->
+              <div class="pt-4 border-t border-slate-200 flex items-center justify-between">
+                <button
+                  type="button"
+                  class="btn-prev-factor px-3 py-1.5 rounded border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1 transition-colors"
+                >
+                  <span class="material-symbols-outlined text-[16px]">arrow_back</span>
+                  <span>Factor anterior</span>
+                </button>
+                <span class="text-xs text-slate-400 font-mono factor-stepper-counter"></span>
+                <button
+                  type="button"
+                  class="btn-next-factor px-3 py-1.5 rounded border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1 transition-colors"
+                >
+                  <span>Siguiente factor</span>
+                  <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+                </button>
+              </div>
+            </div>
+            {% endfor %}
+
+            <!-- Estado vacío cuando no hay factores relevantes aún -->
+            <div id="noFactorsAlert" class="hidden py-12 px-6 text-center space-y-3">
+              <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                <span class="material-symbols-outlined text-2xl">filter_alt_off</span>
+              </div>
+              <h3 class="text-sm font-bold text-slate-800">No hay factores relevantes seleccionados</h3>
+              <p class="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+                Seleccione la prioridad de su organización en el Bloque 1. Los factores que resulten con Impacto Relativo (IR &gt; 1) se habilitarán aquí automáticamente.
+              </p>
+              <button type="button" data-next="paso1" class="mt-2 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition-colors">
+                <span class="material-symbols-outlined text-[15px]">arrow_back</span>
+                <span>Volver al Bloque 1</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-4 border-t border-slate-200 flex items-center justify-between gap-3">
+          <button type="button" class="px-3.5 py-2 rounded border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors flex items-center gap-1.5" data-next="paso1">
+            <span class="material-symbols-outlined text-[16px]">arrow_back</span>
+            <span>Anterior (Factores)</span>
+          </button>
+
+          <div class="flex items-center gap-2">
+            <button type="submit" name="accion" value="borrador" class="px-3.5 py-2 rounded border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">save</span>
+              <span>Guardar Progreso</span>
+            </button>
+            <button type="button" data-next="paso3" class="px-4 py-2 bg-[#047857] hover:bg-[#065f46] text-white text-xs font-semibold rounded transition-colors flex items-center gap-1.5 shadow-sm">
+              <span>Revisar FODA y Dictamen</span>
+              <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL PASO 3: FODA & Finalizar (Matriz 2x2 & Detalle de Auditoría) -->
+    <section class="panel space-y-4 hidden" id="paso3">
+      <div class="bg-white rounded-md border border-slate-300 shadow-sm overflow-hidden p-6 space-y-5">
+        <div>
+          <h2 class="text-base font-bold text-slate-900 font-display">
+            Previsualización Dinámica de Matriz FODA y Dictamen RN-07
+          </h2>
+          <p class="text-xs text-slate-600 mt-0.5">
+            Diagnóstico preliminar calculado en tiempo real antes del cierre oficial de la auditoría.
+          </p>
+        </div>
+
+        <!-- Matriz FODA 4-Cuadrantes Interactiva -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- FORTALEZAS -->
+          <div class="bg-white rounded-md border border-slate-300 border-t-4 border-t-emerald-600 p-4 shadow-2xs space-y-2.5">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-emerald-600 text-[18px]">check_circle</span>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-950 font-mono">Fortalezas (Internas)</h3>
+              </div>
+              <span id="badgeFortalezas" class="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">
+                0
+              </span>
+            </div>
+            <ul id="listFortalezas" class="divide-y divide-slate-100 text-xs">
+              <li class="py-2 text-slate-400 italic">No se identificaron fortalezas.</li>
+            </ul>
+          </div>
+
+          <!-- OPORTUNIDADES -->
+          <div class="bg-white rounded-md border border-slate-300 border-t-4 border-t-sky-600 p-4 shadow-2xs space-y-2.5">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-sky-600 text-[18px]">trending_up</span>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-sky-950 font-mono">Oportunidades (Externas)</h3>
+              </div>
+              <span id="badgeOportunidades" class="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 font-mono">
+                0
+              </span>
+            </div>
+            <ul id="listOportunidades" class="divide-y divide-slate-100 text-xs">
+              <li class="py-2 text-slate-400 italic">No se identificaron oportunidades.</li>
+            </ul>
+          </div>
+
+          <!-- DEBILIDADES -->
+          <div class="bg-white rounded-md border border-slate-300 border-t-4 border-t-amber-500 p-4 shadow-2xs space-y-2.5">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-amber-600 text-[18px]">warning</span>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-amber-950 font-mono">Debilidades (Internas)</h3>
+              </div>
+              <span id="badgeDebilidades" class="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 font-mono">
+                0
+              </span>
+            </div>
+            <ul id="listDebilidades" class="divide-y divide-slate-100 text-xs">
+              <li class="py-2 text-slate-400 italic">No se identificaron debilidades.</li>
+            </ul>
+          </div>
+
+          <!-- AMENAZAS -->
+          <div class="bg-white rounded-md border border-slate-300 border-t-4 border-t-rose-600 p-4 shadow-2xs space-y-2.5">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-rose-600 text-[18px]">gpp_bad</span>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-rose-950 font-mono">Amenazas (Externas)</h3>
+              </div>
+              <span id="badgeAmenazas" class="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 font-mono">
+                0
+              </span>
+            </div>
+            <ul id="listAmenazas" class="divide-y divide-slate-100 text-xs">
+              <li class="py-2 text-slate-400 italic">No se identificaron amenazas.</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Tabla detallada de auditoría FODA -->
+        <div class="space-y-2">
+          <span class="text-xs font-bold text-slate-700 uppercase tracking-wider font-mono block">
+            Tabla Detallada de Factores y Ponderaciones
+          </span>
+          <div class="overflow-x-auto w-full border border-slate-200 rounded">
+            <table class="w-full text-left border-collapse">
+              <thead class="bg-slate-50 text-[11px] font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200 font-mono">
+                <tr>
+                  <th class="py-2.5 px-4">Factor Relevante</th>
+                  <th class="py-2.5 px-4">Importancia Relativa</th>
+                  <th class="py-2.5 px-4">Media</th>
+                  <th class="py-2.5 px-4">Alcance</th>
+                  <th class="py-2.5 px-4">Clasificación FODA</th>
+                </tr>
+              </thead>
+              <tbody id="fodaPreview" class="divide-y divide-slate-200 text-xs bg-white font-mono">
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="recomendacionPreview" class="p-4 rounded-md border text-xs font-sans leading-relaxed bg-slate-50 border-slate-300 text-slate-800">
+        </div>
+
+        <div class="pt-4 border-t border-slate-200 flex items-center justify-between gap-3">
+          <button type="button" class="px-3.5 py-2 rounded border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors flex items-center gap-1.5" data-next="paso2">
+            <span class="material-symbols-outlined text-[16px]">arrow_back</span>
+            <span>Anterior (Subfactores)</span>
+          </button>
+
+          <div class="flex items-center gap-2">
+            <button type="submit" name="accion" value="borrador" class="px-3.5 py-2 rounded border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">save</span>
+              <span>Guardar Borrador</span>
+            </button>
+            <button type="submit" name="accion" value="finalizar" class="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded transition-colors flex items-center gap-2 shadow-md">
+              <span class="material-symbols-outlined text-[18px]">verified</span>
+              <span>Finalizar Evaluación Oficial</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </form>
+</div>
+
 <script>
-const MATRIX={1:{1:1,2:1,3:2,4:2},2:{1:1,2:2,3:2,4:3},3:{1:2,2:2,3:3,4:3},4:{1:2,2:3,3:3,4:4}};
-const levels=['Irrelevante','Opcional','Importante','Fundamental'];const rows=[...document.querySelectorAll('.frow')],groups=[...document.querySelectorAll('.subgroup')];
-function relative(row){const v=Number(row.querySelector('.factor-range').value);return v?MATRIX[v][Number(row.dataset.sugerida)]:0}
-function update(){let select=document.getElementById('factorSelect'),previous=select.value;select.innerHTML='';rows.forEach(row=>{let rel=relative(row);row.querySelector('.relativa-label').textContent=rel?`${rel} · ${levels[rel-1]}`:'Pendiente';if(rel>1){let opt=document.createElement('option');opt.value=row.dataset.factor;opt.textContent=row.querySelector('strong').textContent;select.appendChild(opt)}});if([...select.options].some(o=>o.value===previous))select.value=previous;showGroup();preview()}
-function showGroup(){groups.forEach(g=>g.classList.toggle('hidden',g.dataset.group!==document.getElementById('factorSelect').value))}
-function preview(){let body=document.getElementById('fodaPreview');body.replaceChildren();let neg=[],pending=0,completed=0;rows.forEach(row=>{let rel=relative(row);if(!rel){pending++;return}if(rel===1)return;let group=groups.find(g=>g.dataset.group===row.dataset.factor);let selects=[...group.querySelectorAll('.sub-range')];let ready=selects.length>0&&selects.every(s=>s.value);let scope=row.querySelector('.scope').value;let media=ready?selects.reduce((sum,s)=>sum+Number(s.value),0)/selects.length:null;let classification=ready&&scope?(scope==='Interno'?(media>=3?'Fortaleza':'Debilidad'):(media>=3?'Oportunidad':'Amenaza')):'Pendiente';if(classification==='Pendiente')pending++;else{completed++;if(media<3)neg.push(rel)}let tr=document.createElement('tr');[row.querySelector('strong').textContent,levels[rel-1],ready?media.toFixed(2):'—',scope||'Sin definir',classification].forEach(value=>{let td=document.createElement('td');td.textContent=value;tr.appendChild(td)});body.appendChild(tr);group.querySelector('.media-label').textContent=ready?media.toFixed(2):'Pendiente'});document.getElementById('recomendacionPreview').textContent=pending?'Hay '+pending+' factor(es) pendientes. No se puede emitir una recomendación definitiva.':!completed?'No hay factores relevantes. Revise sus valoraciones.':neg.some(n=>n>=3)?'C · No se recomienda adoptar hasta corregir debilidades o amenazas importantes o fundamentales.':neg.length?'B · Adopción posible con revisión de los factores opcionales negativos.':'A · Se recomienda adoptar.'}
-function tab(id){document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id===id));document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));preview()}
-document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>tab(b.dataset.tab)));document.querySelectorAll('[data-next]').forEach(b=>b.addEventListener('click',()=>tab(b.dataset.next)));document.querySelectorAll('.factor-range,.suggested-range,.scope,.sub-range').forEach(e=>e.addEventListener('change',()=>{if(e.classList.contains('suggested-range'))e.closest('.frow').dataset.sugerida=e.value;update()}));document.getElementById('factorSelect').addEventListener('change',showGroup);document.getElementById('evaluacionForm').addEventListener('submit',e=>{if(e.submitter?.value!=='finalizar')return;let incomplete=rows.some(row=>{let rel=relative(row);if(!rel)return true;if(rel===1)return false;let group=groups.find(g=>g.dataset.group===row.dataset.factor);return !row.querySelector('.scope').value||![...group.querySelectorAll('.sub-range')].length||[...group.querySelectorAll('.sub-range')].some(s=>!s.value)});if(incomplete){e.preventDefault();alert('Complete todos los factores relevantes y sus subfactores antes de finalizar.')}});update();
-const aiButton=document.getElementById('autocompletarIA');
-const aiStatus=document.getElementById('estadoIA');
-aiButton.addEventListener('click',async()=>{
- const form=document.getElementById('evaluacionForm');
- const software=form.elements.namedItem('software').value.trim();
- if(!software){aiStatus.textContent='Primero escriba el nombre del software.';return}
- if(!confirm('Gemini reemplazará los valores actuales del formulario. ¿Desea continuar?'))return;
- aiButton.disabled=true;aiStatus.textContent='Consultando Gemini…';
- try{
-  const payload=new FormData();
-  ['software','organizacion','descripcion'].forEach(name=>payload.append(name,form.elements.namedItem(name).value));
-  payload.append('evaluacion_id','{{ev.pk|default:""}}');
-  payload.append('csrfmiddlewaretoken',form.elements.namedItem('csrfmiddlewaretoken').value);
-  const response=await fetch('{% url "sugerir_ia" %}',{method:'POST',body:payload,credentials:'same-origin'});
-  const result=await response.json();
-  if(!response.ok)throw new Error(result.error||'No fue posible consultar Gemini.');
-  let count=0;
-  result.factores.forEach(f=>{
-   const row=rows.find(r=>Number(r.dataset.factor)===f.id);if(!row)return;
-   row.querySelector('.suggested-range').value=String(f.sugerida);
-   row.dataset.sugerida=String(f.sugerida);
-   row.querySelector('.factor-range').value=String(f.decisor);
-   row.querySelector('.suggestion-reason').value=f.justificacion;
-   row.querySelector('.suggestion-explanation').textContent=f.justificacion;
-   const scope=row.querySelector('.scope');if(scope&&scope.tagName==='SELECT')scope.value=f.alcance;
-   f.subfactores.forEach(sf=>{const control=form.elements.namedItem('sub_'+sf.id);if(control)control.value=String(sf.valor)});
-   count++;
+const MATRIX = {
+  1: {1: 1, 2: 1, 3: 2, 4: 2},
+  2: {1: 1, 2: 2, 3: 2, 4: 3},
+  3: {1: 2, 2: 2, 3: 3, 4: 3},
+  4: {1: 2, 2: 3, 3: 3, 4: 4}
+};
+const levels = ['Irrelevante', 'Opcional', 'Importante', 'Fundamental'];
+const rows = [...document.querySelectorAll('.frow')];
+const groups = [...document.querySelectorAll('.subgroup')];
+
+function relative(row) {
+  const v = Number(row.querySelector('.factor-range').value);
+  return v ? MATRIX[v][Number(row.dataset.sugerida)] : 0;
+}
+
+function selectFactor(factorId) {
+  const select = document.getElementById('factorSelect');
+  if (select) select.value = factorId;
+  showGroup();
+  renderFactorNav();
+}
+
+function renderFactorNav() {
+  const nav = document.getElementById('factorNavList');
+  const select = document.getElementById('factorSelect');
+  if (!nav) return;
+  nav.innerHTML = '';
+
+  const relevantRows = rows.filter(r => relative(r) > 1);
+  const currentId = select ? select.value : '';
+
+  relevantRows.forEach((r, idx) => {
+    const fid = r.dataset.factor;
+    const name = r.querySelector('.font-bold')?.textContent.trim() || `Factor ${fid}`;
+    const group = groups.find(g => g.dataset.group === fid);
+    const inputs = group ? [...group.querySelectorAll('.sub-range')] : [];
+    const total = inputs.length;
+    const filled = inputs.filter(i => i.value).length;
+    const isReady = total > 0 && filled === total;
+    const media = isReady ? inputs.reduce((sum, i) => sum + Number(i.value), 0) / total : null;
+
+    const isActive = fid === currentId;
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `w-full text-left p-2.5 rounded-md border text-xs transition-all flex items-center justify-between gap-2 cursor-pointer ${
+      isActive
+        ? 'bg-emerald-50 border-emerald-600 shadow-2xs ring-1 ring-emerald-600'
+        : 'bg-white border-slate-200 hover:bg-slate-100/70 hover:border-slate-300'
+    }`;
+    btn.onclick = () => selectFactor(fid);
+
+    let statusHtml = '';
+    if (isReady) {
+      statusHtml = `<span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">✓ ${media.toFixed(2)}</span>`;
+    } else if (filled > 0) {
+      statusHtml = `<span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-amber-100 text-amber-800 border border-amber-200 shrink-0">⏳ ${filled}/${total}</span>`;
+    } else {
+      statusHtml = `<span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-slate-100 text-slate-500 border border-slate-200 shrink-0">0/${total}</span>`;
+    }
+
+    btn.innerHTML = `
+      <div class="truncate pr-1">
+        <span class="font-bold text-slate-900 block truncate ${isActive ? 'text-emerald-950 font-extrabold' : ''}">${name}</span>
+      </div>
+      ${statusHtml}
+    `;
+
+    nav.appendChild(btn);
+
+    // Actualizar contador y botones stepper en cada grupo
+    if (group) {
+      const counter = group.querySelector('.factor-stepper-counter');
+      if (counter) counter.textContent = `Factor ${idx + 1} de ${relevantRows.length}`;
+
+      const prevBtn = group.querySelector('.btn-prev-factor');
+      if (prevBtn) {
+        prevBtn.onclick = () => {
+          if (idx > 0) selectFactor(relevantRows[idx - 1].dataset.factor);
+          else tab('paso1');
+        };
+      }
+
+      const nextBtn = group.querySelector('.btn-next-factor');
+      if (nextBtn) {
+        nextBtn.onclick = () => {
+          if (idx < relevantRows.length - 1) selectFactor(relevantRows[idx + 1].dataset.factor);
+          else tab('paso3');
+        };
+      }
+    }
   });
-  update();aiStatus.textContent=`Gemini sugirió valores para ${count} factores. Puede modificarlos antes de guardar.`;
- }catch(error){aiStatus.textContent=error.message}
- finally{aiButton.disabled=false}
+}
+
+function update() {
+  const select = document.getElementById('factorSelect');
+  const previous = select ? select.value : '';
+  if (select) select.innerHTML = '';
+
+  let b1Ready = 0;
+  const relevantRows = [];
+
+  rows.forEach(row => {
+    const dec = row.querySelector('.factor-range').value;
+    const sc = row.querySelector('.scope')?.value;
+    if (dec && sc) b1Ready++;
+
+    const rel = relative(row);
+    const label = row.querySelector('.relativa-label');
+    if (rel) {
+      label.textContent = `${rel} · ${levels[rel - 1]}`;
+      if (rel === 1) {
+        label.className = 'relativa-label inline-flex items-center px-2.5 py-1 rounded text-xs font-bold font-mono bg-slate-100 text-slate-500 border border-slate-200';
+      } else if (rel === 2) {
+        label.className = 'relativa-label inline-flex items-center px-2.5 py-1 rounded text-xs font-bold font-mono bg-amber-50 text-amber-700 border border-amber-200';
+      } else {
+        label.className = 'relativa-label inline-flex items-center px-2.5 py-1 rounded text-xs font-bold font-mono bg-emerald-50 text-emerald-700 border border-emerald-200';
+      }
+    } else {
+      label.textContent = 'Pendiente';
+      label.className = 'relativa-label inline-flex items-center px-2.5 py-1 rounded text-xs font-bold font-mono bg-slate-100 text-slate-600 border border-slate-200';
+    }
+
+    if (rel > 1) {
+      relevantRows.push(row);
+      if (select) {
+        const opt = document.createElement('option');
+        opt.value = row.dataset.factor;
+        opt.textContent = row.querySelector('.font-bold').textContent.trim();
+        select.appendChild(opt);
+      }
+    }
+  });
+
+  // Progreso Bloque 1
+  const b1Pct = Math.round((b1Ready / rows.length) * 100);
+  const b1Texto = document.getElementById('progresoB1Texto');
+  const b1Barra = document.getElementById('progresoB1Barra');
+  const b1PctEl = document.getElementById('progresoB1Pct');
+  if (b1Texto) b1Texto.textContent = `${b1Ready} / ${rows.length} definidos`;
+  if (b1Barra) b1Barra.style.width = `${b1Pct}%`;
+  if (b1PctEl) b1PctEl.textContent = `${b1Pct}%`;
+
+  // Progreso Bloque 2 (Subfactores)
+  const badgeCount = document.getElementById('badgeRelevantesCount');
+  if (badgeCount) badgeCount.textContent = `${relevantRows.length} Factores`;
+
+  const alertEmpty = document.getElementById('noFactorsAlert');
+  if (alertEmpty) {
+    if (relevantRows.length === 0) {
+      alertEmpty.classList.remove('hidden');
+    } else {
+      alertEmpty.classList.add('hidden');
+    }
+  }
+
+  let totalSubsB2 = 0;
+  let filledSubsB2 = 0;
+  relevantRows.forEach(r => {
+    const group = groups.find(g => g.dataset.group === r.dataset.factor);
+    if (group) {
+      const inputs = [...group.querySelectorAll('.sub-range')];
+      totalSubsB2 += inputs.length;
+      filledSubsB2 += inputs.filter(i => i.value).length;
+    }
+  });
+  const b2Pct = totalSubsB2 > 0 ? Math.round((filledSubsB2 / totalSubsB2) * 100) : 0;
+  const b2Texto = document.getElementById('progresoB2Texto');
+  const b2Barra = document.getElementById('progresoB2Barra');
+  if (b2Texto) b2Texto.textContent = `${filledSubsB2} / ${totalSubsB2} (${b2Pct}%)`;
+  if (b2Barra) b2Barra.style.width = `${b2Pct}%`;
+
+  if (select) {
+    if ([...select.options].some(o => o.value === previous)) {
+      select.value = previous;
+    } else if (relevantRows.length > 0) {
+      select.value = relevantRows[0].dataset.factor;
+    }
+  }
+
+  showGroup();
+  renderFactorNav();
+  preview();
+}
+
+function showGroup() {
+  const select = document.getElementById('factorSelect');
+  const current = select ? select.value : '';
+  groups.forEach(g => {
+    if (g.dataset.group === current) {
+      g.classList.remove('hidden');
+    } else {
+      g.classList.add('hidden');
+    }
+  });
+}
+
+function preview() {
+  const body = document.getElementById('fodaPreview');
+  body.replaceChildren();
+  let neg = [], pending = 0, completed = 0;
+
+  const fodaFortalezas = [];
+  const fodaOportunidades = [];
+  const fodaDebilidades = [];
+  const fodaAmenazas = [];
+
+  rows.forEach(row => {
+    const rel = relative(row);
+    if (!rel) {
+      pending++;
+      return;
+    }
+    if (rel === 1) return;
+
+    const group = groups.find(g => g.dataset.group === row.dataset.factor);
+    if (!group) return;
+
+    const selects = [...group.querySelectorAll('.sub-range')];
+    const ready = selects.length > 0 && selects.every(s => s.value);
+    const scope = row.querySelector('.scope').value;
+    const media = ready ? selects.reduce((sum, s) => sum + Number(s.value), 0) / selects.length : null;
+    const classification = ready && scope ? (scope === 'Interno' ? (media >= 3 ? 'Fortaleza' : 'Debilidad') : (media >= 3 ? 'Oportunidad' : 'Amenaza')) : 'Pendiente';
+    const factorNombre = row.querySelector('.font-bold').textContent.trim();
+
+    if (classification === 'Pendiente') {
+      pending++;
+    } else {
+      completed++;
+      if (media < 3) neg.push(rel);
+
+      if (classification === 'Fortaleza') fodaFortalezas.push({ nombre: factorNombre, media: media });
+      else if (classification === 'Oportunidad') fodaOportunidades.push({ nombre: factorNombre, media: media });
+      else if (classification === 'Debilidad') fodaDebilidades.push({ nombre: factorNombre, media: media });
+      else if (classification === 'Amenaza') fodaAmenazas.push({ nombre: factorNombre, media: media });
+    }
+
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-slate-50/70';
+
+    const vals = [
+      factorNombre,
+      levels[rel - 1],
+      ready ? media.toFixed(2) : '—',
+      scope || 'Sin definir',
+      classification
+    ];
+
+    vals.forEach((value, idx) => {
+      const td = document.createElement('td');
+      td.className = 'py-2.5 px-4';
+      if (idx === 4) {
+        if (value === 'Fortaleza' || value === 'Oportunidad') {
+          td.innerHTML = `<span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">${value}</span>`;
+        } else if (value === 'Debilidad') {
+          td.innerHTML = `<span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">${value}</span>`;
+        } else if (value === 'Amenaza') {
+          td.innerHTML = `<span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-red-50 text-red-700 border border-red-200">${value}</span>`;
+        } else {
+          td.innerHTML = `<span class="text-slate-400 italic">${value}</span>`;
+        }
+      } else {
+        td.textContent = value;
+      }
+      tr.appendChild(td);
+    });
+    body.appendChild(tr);
+
+    const mediaLabel = group.querySelector('.media-label');
+    if (mediaLabel) {
+      mediaLabel.textContent = ready ? media.toFixed(2) : 'Pendiente';
+    }
+  });
+
+  // Actualizar listas de cuadrantes FODA 2x2
+  function renderFodaQuadrant(listId, badgeId, items, emptyText, mediaClass) {
+    const listEl = document.getElementById(listId);
+    const badgeEl = document.getElementById(badgeId);
+    if (badgeEl) badgeEl.textContent = items.length;
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    if (items.length === 0) {
+      listEl.innerHTML = `<li class="py-2 text-slate-400 italic">${emptyText}</li>`;
+      return;
+    }
+    items.forEach(it => {
+      const li = document.createElement('li');
+      li.className = 'py-2 flex items-center justify-between gap-3';
+      li.innerHTML = `
+        <span class="font-medium text-slate-800">${it.nombre}</span>
+        <span class="font-mono font-bold ${mediaClass} px-2 py-0.5 rounded text-[11px] shrink-0">
+          ${it.media.toFixed(2)}
+        </span>
+      `;
+      listEl.appendChild(li);
+    });
+  }
+
+  renderFodaQuadrant('listFortalezas', 'badgeFortalezas', fodaFortalezas, 'No se identificaron fortalezas.', 'bg-emerald-50 text-emerald-700');
+  renderFodaQuadrant('listOportunidades', 'badgeOportunidades', fodaOportunidades, 'No se identificaron oportunidades.', 'bg-sky-50 text-sky-700');
+  renderFodaQuadrant('listDebilidades', 'badgeDebilidades', fodaDebilidades, 'No se identificaron debilidades.', 'bg-amber-50 text-amber-700');
+  renderFodaQuadrant('listAmenazas', 'badgeAmenazas', fodaAmenazas, 'No se identificaron amenazas.', 'bg-rose-50 text-rose-700');
+
+  const recBox = document.getElementById('recomendacionPreview');
+  if (pending) {
+    recBox.className = 'p-4 rounded-md border text-xs font-sans leading-relaxed bg-amber-50 border-amber-200 text-amber-800 flex items-center gap-2';
+    recBox.innerHTML = `<span class="material-symbols-outlined text-[20px] shrink-0">pending</span><span>Hay <strong>${pending}</strong> factor(es) relevantes o subfactores pendientes por valorar. No se puede emitir una recomendación definitiva.</span>`;
+  } else if (!completed) {
+    recBox.className = 'p-4 rounded-md border text-xs font-sans leading-relaxed bg-slate-50 border-slate-300 text-slate-700 flex items-center gap-2';
+    recBox.innerHTML = `<span class="material-symbols-outlined text-[20px] shrink-0">info</span><span>No hay factores relevantes en esta selección. Revise sus valoraciones de decisor.</span>`;
+  } else if (neg.some(n => n >= 3)) {
+    recBox.className = 'p-4 rounded-md border text-xs font-sans leading-relaxed bg-red-50 border-red-200 text-red-800 flex items-center gap-2';
+    recBox.innerHTML = `<span class="material-symbols-outlined text-[20px] shrink-0 text-red-600">gpp_bad</span><span><strong>RECOMENDACIÓN C (No Adoptar):</strong> Existen debilidades o amenazas en factores clave clasificados como Importantes o Fundamentales.</span>`;
+  } else if (neg.length) {
+    recBox.className = 'p-4 rounded-md border text-xs font-sans leading-relaxed bg-amber-50 border-amber-200 text-amber-800 flex items-center gap-2';
+    recBox.innerHTML = `<span class="material-symbols-outlined text-[20px] shrink-0 text-amber-600">warning</span><span><strong>RECOMENDACIÓN B (Adoptar con Condiciones):</strong> Adopción viable pero requiere mitigar debilidades en factores secundarios/opcionales.</span>`;
+  } else {
+    recBox.className = 'p-4 rounded-md border text-xs font-sans leading-relaxed bg-emerald-50 border-emerald-200 text-emerald-800 flex items-center gap-2';
+    recBox.innerHTML = `<span class="material-symbols-outlined text-[20px] shrink-0 text-emerald-600">verified</span><span><strong>RECOMENDACIÓN A (Adoptar):</strong> Cumple satisfactoriamente con la totalidad de los criterios metodológicos analizados.</span>`;
+  }
+}
+
+function validarBloque1() {
+  const incompletos = [];
+  rows.forEach(r => {
+    const decisor = r.querySelector('.factor-range').value;
+    const scopeEl = r.querySelector('.scope');
+    const scopeVal = scopeEl ? scopeEl.value : '';
+    if (!decisor || !scopeVal) {
+      incompletos.push(r);
+    }
+  });
+  return incompletos;
+}
+
+function validarBloque2() {
+  const incompletos = [];
+  rows.forEach(r => {
+    const rel = relative(r);
+    if (rel > 1) {
+      const fid = r.dataset.factor;
+      const group = groups.find(g => g.dataset.group === fid);
+      if (group) {
+        group.querySelectorAll('.sub-range').forEach(sel => {
+          if (!sel.value) {
+            incompletos.push({ row: r, sel: sel, fid: fid });
+          }
+        });
+      }
+    }
+  });
+  return incompletos;
+}
+
+function tab(id) {
+  // Validación estricta para avanzar de bloque
+  if (id === 'paso2' || id === 'paso3') {
+    const incB1 = validarBloque1();
+    if (incB1.length > 0) {
+      incB1.forEach(r => {
+        r.classList.add('bg-rose-50', 'ring-2', 'ring-rose-400');
+        setTimeout(() => r.classList.remove('ring-2', 'ring-rose-400'), 3000);
+      });
+      incB1[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      alert('⚠️ Bloque 1 incompleto: Debe seleccionar la prioridad del decisor (ID) y el alcance para todos los factores (' + incB1.length + ' pendientes) antes de avanzar al Bloque 2.');
+      return;
+    }
+  }
+
+  if (id === 'paso3') {
+    const incB2 = validarBloque2();
+    if (incB2.length > 0) {
+      selectFactor(incB2[0].fid);
+      const container = incB2[0].sel.closest('.subfactor-rating') || incB2[0].sel;
+      if (container) {
+        container.classList.add('ring-2', 'ring-rose-400', 'rounded-md');
+        container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => container.classList.remove('ring-2', 'ring-rose-400', 'rounded-md'), 3000);
+      }
+      alert('⚠️ Bloque 2 incompleto: Faltan ' + incB2.length + ' subfactores relevantes por calificar antes de ver el diagnóstico y dictamen.');
+      return;
+    }
+  }
+
+  document.querySelectorAll('.panel').forEach(p => {
+    if (p.id === id) {
+      p.classList.remove('hidden');
+    } else {
+      p.classList.add('hidden');
+    }
+  });
+
+  document.querySelectorAll('.tab').forEach(b => {
+    if (b.dataset.tab === id) {
+      b.classList.remove('border-slate-300', 'opacity-80');
+      b.classList.add('border-2', 'border-slate-900', 'opacity-100');
+    } else {
+      b.classList.remove('border-2', 'border-slate-900', 'opacity-100');
+      b.classList.add('border-slate-300', 'opacity-80');
+    }
+  });
+
+  preview();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Manejador de clics interactivos para los Segmented Pills de subfactores (1 a 4)
+document.addEventListener('click', e => {
+  const pill = e.target.closest('.sub-pill');
+  if (!pill) return;
+  const val = pill.dataset.val;
+  const container = pill.closest('.subfactor-rating');
+  if (!container) return;
+  const input = container.querySelector('.sub-range');
+  if (!input) return;
+
+  input.value = val;
+
+  container.querySelectorAll('.sub-pill').forEach(p => {
+    if (p.dataset.val === val) {
+      p.className = 'sub-pill px-3 py-2 rounded-md border text-xs font-semibold transition-all flex flex-col items-center justify-center gap-0.5 text-center cursor-pointer active bg-emerald-700 text-white border-emerald-700 shadow-sm ring-1 ring-emerald-700';
+    } else {
+      p.className = 'sub-pill px-3 py-2 rounded-md border text-xs font-semibold transition-all flex flex-col items-center justify-center gap-0.5 text-center cursor-pointer bg-white text-slate-700 border-slate-300 hover:bg-slate-50 hover:border-slate-400';
+    }
+  });
+
+  input.dispatchEvent(new Event('change', { bubbles: true }));
 });
-</script>{% endblock %}
+
+document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => tab(b.dataset.tab)));
+document.querySelectorAll('[data-next]').forEach(b => b.addEventListener('click', () => tab(b.dataset.next)));
+
+document.querySelectorAll('.factor-range, .suggested-range, .scope, .sub-range').forEach(e => {
+  e.addEventListener('change', () => {
+    if (e.classList.contains('suggested-range')) {
+      e.closest('.frow').dataset.sugerida = e.value;
+    }
+    update();
+  });
+});
+
+document.getElementById('factorSelect').addEventListener('change', showGroup);
+
+document.getElementById('evaluacionForm').addEventListener('submit', e => {
+  if (e.submitter?.value !== 'finalizar') return;
+  const incB1 = validarBloque1();
+  if (incB1.length > 0) {
+    e.preventDefault();
+    tab('paso1');
+    return;
+  }
+  const incB2 = validarBloque2();
+  if (incB2.length > 0) {
+    e.preventDefault();
+    tab('paso2');
+    return;
+  }
+});
+
+update();
+
+// AI Autocomplete Logic (cuando está presente en el DOM)
+const aiButton = document.getElementById('autocompletarIA');
+const aiStatus = document.getElementById('estadoIA');
+
+if (aiButton) {
+  aiButton.addEventListener('click', async () => {
+    const form = document.getElementById('evaluacionForm');
+    const software = form.elements.namedItem('software').value.trim();
+    if (!software) {
+      if (aiStatus) aiStatus.textContent = 'Primero escriba el nombre del software FLOSS.';
+      return;
+    }
+
+    if (!confirm('El asistente de IA propondrá valores de literatura para los factores basados en la metodología. ¿Desea continuar?')) {
+      return;
+    }
+
+    aiButton.disabled = true;
+    if (aiStatus) aiStatus.textContent = 'Consultando al Asistente de IA... por favor espere unos segundos.';
+
+    try {
+      const payload = new FormData();
+      ['nombre', 'software', 'organizacion', 'descripcion'].forEach(name => {
+        payload.append(name, form.elements.namedItem(name).value);
+      });
+      payload.append('evaluacion_id', '{{ ev.pk|default:"" }}');
+      payload.append('csrfmiddlewaretoken', form.elements.namedItem('csrfmiddlewaretoken').value);
+
+      const response = await fetch('{% url "sugerir_ia" %}', {
+        method: 'POST',
+        body: payload,
+        credentials: 'same-origin'
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'No fue posible consultar al Asistente de IA.');
+      }
+
+      let count = 0;
+      result.factores.forEach(f => {
+        const row = rows.find(r => Number(r.dataset.factor) === f.id);
+        if (!row) return;
+
+        const suggestedInput = row.querySelector('.suggested-range');
+        if (suggestedInput) {
+          suggestedInput.value = String(f.sugerida);
+        }
+        const suggestedLabel = row.querySelector('.suggested-label');
+        if (suggestedLabel) {
+          suggestedLabel.textContent = `${f.sugerida} · ${levels[f.sugerida - 1]}`;
+        }
+        row.dataset.sugerida = String(f.sugerida);
+
+        // La prioridad del decisor (ID) la elige el usuario humano; no se sobreescribe
+
+        const reasonHidden = row.querySelector('.suggestion-reason');
+        if (reasonHidden) reasonHidden.value = f.justificacion;
+
+        const reasonExpl = row.querySelector('.suggestion-explanation');
+        if (reasonExpl) reasonExpl.textContent = f.justificacion;
+
+        const reasonCont = row.querySelector('.suggestion-container');
+        if (reasonCont && f.justificacion) {
+          reasonCont.classList.remove('hidden');
+        }
+
+        const scope = row.querySelector('.scope');
+        if (scope && scope.tagName === 'SELECT') {
+          scope.value = f.alcance;
+        }
+
+        // Subfactores: Permanecen en blanco para valoración consciente del auditor en el Bloque 2
+        count++;
+      });
+
+      update();
+      if (aiStatus) aiStatus.textContent = `✨ La IA sugirió exitosamente la Importancia Sugerida (IS) para ${count} factores. Defina su prioridad (ID).`;
+    } catch (error) {
+      if (aiStatus) aiStatus.textContent = 'Error: ' + error.message;
+    } finally {
+      aiButton.disabled = false;
+    }
+  });
+}
+</script>
+{% endblock %}

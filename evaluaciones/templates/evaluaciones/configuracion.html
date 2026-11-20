@@ -1,11 +1,102 @@
-{% extends 'evaluaciones/base.html' %}{% block content %}
-<h2>Configuración del sistema</h2>
-<div class="card"><p>Solo el Administrador puede cambiar estas opciones. Las evaluaciones existentes conservan el método con el que se crearon.</p>
-<form method="post">{% csrf_token %}
-<h3>Método de importancia sugerida</h3>
-<label><input type="radio" name="metodo_importancia" value="TESIS" {% if config.metodo_importancia == 'TESIS' %}checked{% endif %} style="width:auto"> <strong>Tesis</strong> — utiliza los valores de referencia del catálogo y la matriz IE/IL.</label><br>
-<label><input type="radio" name="metodo_importancia" value="IA" {% if config.metodo_importancia == 'IA' %}checked{% endif %} style="width:auto"> <strong>Gemini IA</strong> — propone la importancia sugerida a partir del contexto.</label>
-<h3>Registro público</h3>
-<label><input type="checkbox" name="registro_abierto" {% if config.registro_abierto %}checked{% endif %}> Permitir que cualquier persona cree una cuenta de Evaluador. Si se desactiva, solo el Administrador crea usuarios desde el panel.</label><br>
-<button type="submit">Guardar configuración</button></form></div>
+{% extends 'evaluaciones/base.html' %}
+{% block title %}Configuración del Sistema — GUIOS PRO{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-4xl">
+  <!-- Breadcrumb -->
+  <div class="flex items-center justify-between text-xs text-slate-500 pb-2 border-b border-slate-200">
+    <div class="flex items-center gap-2 text-sm">
+      <a href="{% url 'panel' %}" class="text-slate-500 hover:text-slate-800 transition-colors">Panel de Administración</a>
+      <span class="text-slate-300">/</span>
+      <span class="font-semibold text-slate-900">Configuración Global</span>
+    </div>
+    <span class="text-xs text-slate-400 font-mono">Modo Administrador</span>
+  </div>
+
+  <div class="bg-white rounded-md border border-slate-300 p-6 shadow-sm space-y-6">
+    <div class="border-b border-slate-200 pb-4">
+      <h1 class="text-xl font-bold tracking-tight text-slate-900 font-display">
+        Configuración del Sistema GUIOS PRO
+      </h1>
+      <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+        Modifique las políticas de cálculo de importancia y el control de acceso público. Las evaluaciones ya existentes conservan de forma inmutable el método con el que fueron creadas.
+      </p>
+    </div>
+
+    <form method="post" class="space-y-6">
+      {% csrf_token %}
+
+      <!-- Método de Importancia Sugerida -->
+      <div class="space-y-3">
+        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wide font-mono">
+          Método de Importancia Sugerida (IS) para Nuevas Evaluaciones
+        </label>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <label class="relative flex items-start gap-3 p-4 rounded-md border cursor-pointer transition-all hover:bg-slate-50 {% if config.metodo_importancia == 'TESIS' %}border-emerald-600 bg-emerald-50/40{% else %}border-slate-300 bg-white{% endif %}">
+            <input
+              type="radio"
+              name="metodo_importancia"
+              value="TESIS"
+              {% if config.metodo_importancia == 'TESIS' %}checked{% endif %}
+              class="mt-1 text-emerald-700 focus:ring-emerald-700"
+            >
+            <div>
+              <div class="text-sm font-bold text-slate-900">Metodología de la Tesis (Recomendado)</div>
+              <div class="text-xs text-slate-500 mt-1 leading-relaxed">
+                Utiliza los valores de referencia fijos del catálogo original de la tesis. Proporciona estabilidad y comparabilidad estricta.
+              </div>
+            </div>
+          </label>
+
+          <label class="relative flex items-start gap-3 p-4 rounded-md border cursor-pointer transition-all hover:bg-slate-50 {% if config.metodo_importancia == 'IA' %}border-emerald-600 bg-emerald-50/40{% else %}border-slate-300 bg-white{% endif %}">
+            <input
+              type="radio"
+              name="metodo_importancia"
+              value="IA"
+              {% if config.metodo_importancia == 'IA' %}checked{% endif %}
+              class="mt-1 text-emerald-700 focus:ring-emerald-700"
+            >
+            <div>
+              <div class="text-sm font-bold text-slate-900">✨ Asistente de IA (Propuesta Adaptativa)</div>
+              <div class="text-xs text-slate-500 mt-1 leading-relaxed">
+                Permite al motor de Inteligencia Artificial proponer y ajustar la importancia sugerida según la literatura técnica del software y la organización evaluada.
+              </div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Registro Público -->
+      <div class="pt-4 border-t border-slate-200 space-y-3">
+        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wide font-mono">
+          Control de Registro Público de Cuentas
+        </label>
+        <label class="flex items-start gap-3 p-4 rounded-md border border-slate-300 bg-white cursor-pointer hover:bg-slate-50">
+          <input
+            type="checkbox"
+            name="registro_abierto"
+            {% if config.registro_abierto %}checked{% endif %}
+            class="mt-1 text-emerald-700 rounded focus:ring-emerald-700"
+          >
+          <div>
+            <span class="text-sm font-bold text-slate-900">Permitir Registro Público Abierto</span>
+            <p class="text-xs text-slate-500 mt-0.5 leading-relaxed">
+              Cualquier usuario puede crear una cuenta con rol <strong>Evaluador</strong> desde la pantalla de login. Si se desactiva, solo los administradores podrán dar de alta nuevos usuarios desde el panel.
+            </p>
+          </div>
+        </label>
+      </div>
+
+      <div class="pt-4 border-t border-slate-200 flex items-center justify-between">
+        <a href="{% url 'panel' %}" class="px-4 py-2 rounded border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors">
+          Cancelar
+        </a>
+        <button type="submit" class="px-5 py-2.5 bg-[#047857] hover:bg-[#065f46] text-white text-xs font-semibold rounded transition-colors shadow-sm flex items-center gap-2">
+          <span class="material-symbols-outlined text-[18px]">save</span>
+          <span>Guardar Configuración</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}

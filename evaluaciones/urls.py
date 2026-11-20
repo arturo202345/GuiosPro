@@ -4,7 +4,9 @@ from django.urls import path
 from . import panel, views
 
 urlpatterns = [
-    path('', views.inicio, name='inicio'),
+    path('', views.landing, name='landing'),
+    path('landing/', views.landing, name='landing_page'),
+    path('inicio/', views.inicio, name='inicio'),
     path('registro/', views.registro, name='registro'),
     path('ingresar/', views.Ingreso.as_view(), name='login'),
     path('salir/', auth_views.LogoutView.as_view(), name='logout'),

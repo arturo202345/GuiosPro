@@ -1,1 +1,22 @@
-{% extends 'evaluaciones/base.html' %}{% block content %}<div class="card auth"><h2>Acceso denegado</h2><p>{{ exception|default:'No tiene permiso para esta acción.' }}</p><p><a href="/">Volver al inicio</a></p></div>{% endblock %}
+{% extends 'evaluaciones/base.html' %}
+{% block title %}Acceso Denegado (403) — GUIOS PRO{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-md mx-auto py-12">
+  <div class="bg-white rounded-md border border-slate-300 shadow-sm p-8 text-center space-y-4">
+    <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto shadow-sm">
+      <span class="material-symbols-outlined text-[28px]">lock_person</span>
+    </div>
+    <h1 class="text-xl font-bold text-slate-900 font-display">Acceso Restringido</h1>
+    <p class="text-xs text-slate-600 leading-relaxed">
+      {{ exception|default:'Su rol de usuario no dispone de los privilegios requeridos para acceder a este módulo.' }}
+    </p>
+    <div class="pt-2">
+      <a href="{% url 'inicio' %}" class="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded transition-colors shadow-sm">
+        <span class="material-symbols-outlined text-[16px]">home</span>
+        <span>Volver a Mis Evaluaciones</span>
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

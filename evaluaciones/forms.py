@@ -25,6 +25,12 @@ class FactorForm(forms.ModelForm):
     class Meta:
         model = Factor
         fields = ['dimension', 'nombre', 'descripcion', 'sugerida', 'alcance', 'activo']
+        labels = {
+            'descripcion': 'Pregunta orientativa / Descripción del factor',
+        }
+        help_texts = {
+            'descripcion': 'Esta pregunta o descripción se muestra al evaluador en el formulario para guiar su valoración.',
+        }
         widgets = {'descripcion': forms.Textarea(attrs={'rows': 3})}
 
 
@@ -32,6 +38,12 @@ class SubfactorForm(forms.ModelForm):
     class Meta:
         model = Subfactor
         fields = ['factor', 'nombre', 'descripcion', 'activo']
+        labels = {
+            'descripcion': 'Pregunta orientativa / Guía de cumplimiento',
+        }
+        help_texts = {
+            'descripcion': 'Aclaración o pregunta práctica que verá el evaluador debajo de este subfactor.',
+        }
         widgets = {'nombre': forms.Textarea(attrs={'rows': 2}), 'descripcion': forms.Textarea(attrs={'rows': 2})}
 
 
