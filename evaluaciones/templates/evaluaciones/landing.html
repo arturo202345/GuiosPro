@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="es" class="scroll-smooth">
 <head>
@@ -24,6 +25,7 @@
         overscroll-behavior: none;
       }
     }
+
     ::-webkit-scrollbar {
       width: 6px;
       height: 6px;
@@ -36,11 +38,27 @@
       border-radius: 9999px;
     }
 
-    /* Google Studio Smooth Animations */
+    /* Rise at Seven: Masked Typography Reveal */
+    .title-mask-wrapper {
+      overflow: hidden;
+      display: inline-block;
+      vertical-align: bottom;
+    }
+    .title-mask-inner {
+      display: inline-block;
+      transform: translateY(115%);
+      transition: transform 1s cubic-bezier(0.16, 1, 0.3, 1);
+      will-change: transform;
+    }
+    .is-revealed .title-mask-inner {
+      transform: translateY(0%);
+    }
+
+    /* Scroll Reveal Baseline */
     .reveal-elem {
       opacity: 0;
-      transform: translateY(24px);
-      transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+      transform: translateY(28px);
+      transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1), transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
       will-change: opacity, transform;
     }
     .reveal-elem.is-revealed {
@@ -48,7 +66,61 @@
       transform: translateY(0);
     }
 
-    /* Studio Ambient Glow Pulse */
+    /* Rise at Seven: Radial Spotlight On Cards */
+    .spotlight-card {
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), 
+                  box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+                  border-color 0.3s ease;
+      transform-style: preserve-3d;
+    }
+    .spotlight-card::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: inherit;
+      background: radial-gradient(380px circle at var(--mouse-x, -500px) var(--mouse-y, -500px), rgba(16, 185, 129, 0.14), transparent 45%);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .spotlight-card:hover::before {
+      opacity: 1;
+    }
+    .spotlight-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 16px 32px -10px rgba(15, 23, 42, 0.08), 0 4px 8px -2px rgba(15, 23, 42, 0.03);
+      border-color: #CBD5E1;
+    }
+
+    /* Rise at Seven: Infinite Looping Marquee Strip */
+    .marquee-wrapper {
+      display: flex;
+      overflow: hidden;
+      user-select: none;
+      gap: 1.5rem;
+      mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+      -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+    }
+    .marquee-content {
+      display: flex;
+      flex-shrink: 0;
+      align-items: center;
+      gap: 1.5rem;
+      animation: marqueeScroll 28s linear infinite;
+      will-change: transform;
+    }
+    .marquee-wrapper:hover .marquee-content {
+      animation-play-state: paused;
+    }
+    @keyframes marqueeScroll {
+      from { transform: translateX(0); }
+      to { transform: translateX(calc(-100% - 1.5rem)); }
+    }
+
+    /* Ambient Glow Pulse */
     @keyframes studioPulse {
       0%, 100% {
         transform: translate(-50%, 0) scale(1);
@@ -63,14 +135,33 @@
       animation: studioPulse 10s ease-in-out infinite;
     }
 
-    /* Micro Hover Card Lift */
-    .saas-card {
-      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
+    /* Magnetic Physics Classes */
+    .magnetic-btn {
+      display: inline-flex;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      will-change: transform;
     }
-    .saas-card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 12px 24px -10px rgba(15, 23, 42, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.03);
-      border-color: #CBD5E1;
+    .magnetic-inner {
+      display: inline-flex;
+      align-items: center;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      will-change: transform;
+    }
+
+    /* Header Nav Dynamics */
+    #main-header {
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), padding 0.3s ease;
+    }
+    #main-header.nav-hidden {
+      transform: translateY(-120%);
+    }
+    #main-header.nav-scrolled .header-inner-box {
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
+      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+      background-color: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
     }
 
     .material-symbols-outlined {
@@ -123,27 +214,29 @@
 
 <body class="bg-surface-canvas text-brand-navy min-h-screen antialiased selection:bg-brand-emerald-light selection:text-brand-emerald-dark flex flex-col justify-between">
 
-  <!-- LIQUID GLASS FLOATING HEADER / NAVBAR (Mockup Refined) -->
-  <header class="fixed top-0 left-0 right-0 z-50 px-4 md:px-8 py-3 transition-all duration-300" id="main-header">
-    <div class="max-w-7xl mx-auto bg-white/95 backdrop-blur-md border border-slate-200 shadow-sm rounded-lg px-6 py-3 flex items-center justify-between transition-all">
+  <!-- LIQUID GLASS FLOATING HEADER (Rise at Seven Auto-Hide & Shrink) -->
+  <header class="fixed top-0 left-0 right-0 z-50 px-4 md:px-8 py-3" id="main-header">
+    <div class="header-inner-box max-w-7xl mx-auto bg-white/95 backdrop-blur-md border border-slate-200 shadow-sm rounded-lg px-6 py-3 flex items-center justify-between transition-all duration-300">
       
-      <!-- Brand Logo -->
-      <a class="flex items-center gap-2.5 group" data-path="overview" href="{% url 'landing' %}">
-        <div class="w-7 h-7 rounded bg-brand-navy flex items-center justify-center transition-transform group-hover:scale-105">
-          <span class="inline-block w-2 h-2 bg-emerald-500 rounded-sm"></span>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="text-sm font-bold tracking-tight text-brand-navy font-sans">
-            GUIOS<span class="text-emerald-700">PRO</span>
-          </span>
-          <span class="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 border border-slate-200 rounded">
-            v2.4 Pro
-          </span>
+      <!-- Brand Logo with micro-spring interaction -->
+      <a class="flex items-center gap-2.5 group magnetic-btn" data-strength="0.15" data-path="overview" href="{% url 'landing' %}">
+        <div class="magnetic-inner flex items-center gap-2.5">
+          <div class="w-7 h-7 rounded bg-brand-navy flex items-center justify-center transition-transform group-hover:scale-105 duration-200">
+            <span class="inline-block w-2 h-2 bg-emerald-500 rounded-sm"></span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-bold tracking-tight text-brand-navy font-sans">
+              GUIOS<span class="text-emerald-700">PRO</span>
+            </span>
+            <span class="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 border border-slate-200 rounded">
+              v2.4 Pro
+            </span>
+          </div>
         </div>
       </a>
 
-      <!-- Navigation Links -->
-      <nav class="hidden md:flex items-center gap-1">
+      <!-- Navigation Links with smooth pill highlight -->
+      <nav class="hidden md:flex items-center gap-1" aria-label="Navegación principal">
         <a aria-current="page" class="px-3 py-1.5 text-xs font-semibold text-brand-navy rounded bg-slate-100 transition-colors" data-path="overview" href="#overview">
           Visión General
         </a>
@@ -158,23 +251,27 @@
         </a>
       </nav>
 
-      <!-- Auth Action Links -->
+      <!-- Auth Action Links with magnetic depth -->
       <div class="flex items-center gap-2">
         {% if user.is_authenticated %}
           <span class="hidden sm:inline-block text-xs text-slate-600 font-medium px-2 py-1 bg-slate-100 rounded border border-slate-200">
             {{ user.username }}
           </span>
-          <a class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-brand-navy hover:bg-slate-800 rounded shadow-sm transition-all" href="{% url 'inicio' %}">
-            <span class="material-symbols-outlined text-[15px]">dashboard</span>
-            <span>Panel</span>
+          <a class="magnetic-btn inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-brand-navy hover:bg-slate-800 rounded shadow-sm transition-all" href="{% url 'inicio' %}" data-strength="0.25">
+            <span class="magnetic-inner flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[15px]">dashboard</span>
+              <span>Panel</span>
+            </span>
           </a>
         {% else %}
-          <a class="text-xs font-medium text-slate-700 hover:text-brand-navy px-3 py-1.5 rounded hover:bg-slate-50 transition-colors" data-path="login" href="{% url 'login' %}">
-            Iniciar Sesión
+          <a class="magnetic-btn text-xs font-medium text-slate-700 hover:text-brand-navy px-3 py-1.5 rounded hover:bg-slate-50 transition-colors" data-strength="0.2" data-path="login" href="{% url 'login' %}">
+            <span class="magnetic-inner">Iniciar Sesión</span>
           </a>
-          <a class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded shadow-sm transition-all group" data-path="login" href="{% url 'login' %}">
-            <span>Comenzar</span>
-            <span class="material-symbols-outlined text-[15px] group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
+          <a class="magnetic-btn inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded shadow-sm transition-all group" data-strength="0.3" data-path="login" href="{% url 'login' %}">
+            <span class="magnetic-inner flex items-center gap-1.5">
+              <span>Comenzar</span>
+              <span class="material-symbols-outlined text-[15px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+            </span>
           </a>
         {% endif %}
       </div>
@@ -183,12 +280,12 @@
   </header>
 
   <!-- MAIN WRAPPER -->
-  <main class="w-full pt-28 pb-16 flex flex-col gap-20">
+  <main class="w-full pt-28 pb-16 flex flex-col gap-16 md:gap-20">
 
     <!-- HERO SECTION WITH LIQUID GLOW & ENTERPRISE GRID -->
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full relative" id="overview">
       
-      <!-- Studio Ambient Radial Glow -->
+      <!-- Ambient Radial Glow -->
       <div class="absolute -top-24 left-1/2 -translate-x-1/2 w-[760px] max-w-full h-[440px] pointer-events-none -z-10 overflow-hidden ambient-glow" aria-hidden="true">
         <div class="w-full h-full opacity-50 blur-3xl rounded-full" style="background: radial-gradient(circle, rgba(16, 185, 129, 0.32) 0%, rgba(5, 150, 105, 0.14) 45%, rgba(248, 250, 252, 0) 70%);"></div>
       </div>
@@ -198,18 +295,20 @@
         <!-- LEFT COLUMN (7 COLS): SAAS VALUE PROP & ACTIONS -->
         <div class="lg:col-span-7 flex flex-col items-start pr-0 lg:pr-4 reveal-elem">
           
-          <!-- Pill Badges -->
+          <!-- Pill Badges with Micro-Interaction -->
           <div class="flex flex-wrap items-center gap-2 sm:gap-3 text-xs font-semibold tracking-wider uppercase text-slate-500 mb-6">
-            <span class="tracking-wider font-semibold text-slate-500 text-[11px] uppercase">100% Empírico</span>
+            <span class="px-2 py-0.5 rounded bg-slate-100 border border-slate-200/80 tracking-wider font-semibold text-slate-600 text-[11px] uppercase transition-colors hover:border-emerald-500/50 hover:bg-emerald-50">100% Empírico</span>
             <span class="text-slate-300">•</span>
-            <span class="tracking-wider font-semibold text-slate-500 text-[11px] uppercase">Verificado en entornos reales</span>
+            <span class="px-2 py-0.5 rounded bg-slate-100 border border-slate-200/80 tracking-wider font-semibold text-slate-600 text-[11px] uppercase transition-colors hover:border-emerald-500/50 hover:bg-emerald-50">Verificado en entornos reales</span>
             <span class="text-slate-300">•</span>
-            <span class="tracking-wider font-semibold text-slate-500 text-[11px] uppercase">Metodología Multicriterio OSS</span>
+            <span class="px-2 py-0.5 rounded bg-slate-100 border border-slate-200/80 tracking-wider font-semibold text-slate-600 text-[11px] uppercase transition-colors hover:border-emerald-500/50 hover:bg-emerald-50">Metodología Multicriterio OSS</span>
           </div>
 
-          <!-- Main Hero Headline -->
+          <!-- Main Hero Headline (Rise at Seven Masked Reveal) -->
           <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-brand-navy leading-tight mb-6">
-            Evalúa software libre sin suposiciones.
+            <span class="title-mask-wrapper">
+              <span class="title-mask-inner">Evalúa software libre sin suposiciones.</span>
+            </span>
           </h1>
 
           <!-- Subtitle / Methodology Value Statement -->
@@ -217,49 +316,57 @@
             Metodología analítica y evaluación multicriterio para la toma de decisiones informada en adopción de Open Source en organizaciones.
           </p>
 
-          <!-- Primary Actions -->
+          <!-- Primary Actions (Magnetic Buttons) -->
           <div class="flex flex-wrap items-center gap-3.5 mb-10 w-full sm:w-auto">
             {% if user.is_authenticated %}
-              <a class="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded shadow-sm transition-all group" href="{% url 'nueva' %}">
-                <span>Comenzar Evaluación</span>
-                <span class="material-symbols-outlined text-base group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
+              <a class="magnetic-btn inline-flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded shadow-sm transition-all group" href="{% url 'nueva' %}" data-strength="0.32">
+                <span class="magnetic-inner flex items-center gap-2">
+                  <span>Comenzar Evaluación</span>
+                  <span class="material-symbols-outlined text-base group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                </span>
               </a>
-              <a class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded shadow-sm transition-colors" href="{% url 'inicio' %}">
-                <span class="material-symbols-outlined text-base text-slate-500">dashboard</span>
-                <span>Ir al Panel</span>
+              <a class="magnetic-btn inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded shadow-sm transition-colors" href="{% url 'inicio' %}" data-strength="0.25">
+                <span class="magnetic-inner flex items-center gap-1.5">
+                  <span class="material-symbols-outlined text-base text-slate-500">dashboard</span>
+                  <span>Ir al Panel</span>
+                </span>
               </a>
             {% else %}
-              <a class="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded shadow-sm transition-all group" data-path="login" href="{% url 'login' %}">
-                <span>Comenzar Evaluación</span>
-                <span class="material-symbols-outlined text-base group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
+              <a class="magnetic-btn inline-flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded shadow-sm transition-all group" data-path="login" href="{% url 'login' %}" data-strength="0.32">
+                <span class="magnetic-inner flex items-center gap-2">
+                  <span>Comenzar Evaluación</span>
+                  <span class="material-symbols-outlined text-base group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                </span>
               </a>
-              <a class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded shadow-sm transition-colors" href="#benchmarks">
-                <span class="material-symbols-outlined text-base text-slate-500">analytics</span>
-                <span>Ver métricas</span>
+              <a class="magnetic-btn inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded shadow-sm transition-colors" href="#benchmarks" data-strength="0.25">
+                <span class="magnetic-inner flex items-center gap-1.5">
+                  <span class="material-symbols-outlined text-base text-slate-500">analytics</span>
+                  <span>Ver métricas</span>
+                </span>
               </a>
             {% endif %}
           </div>
 
-          <!-- KPI Metrics Row in sleek frosted cards (Animated Count-Up) -->
+          <!-- KPI Metrics Row (Exponential Eased Count-Up) -->
           <div class="grid grid-cols-3 gap-3 w-full max-w-xl pt-4 border-t border-slate-200/80">
-            <div class="flex flex-col gap-1 pr-4 border-r border-slate-200/60">
+            <div class="flex flex-col gap-1 pr-4 border-r border-slate-200/60 group cursor-default">
               <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-brand-emerald shrink-0 animate-pulse"></span>
-                <span class="text-3xl font-extrabold text-brand-navy tracking-tight font-sans counter-number" data-target="3">0</span>
+                <span class="text-3xl font-extrabold text-brand-navy tracking-tight font-sans counter-number transition-transform group-hover:scale-105 duration-200" data-target="3">0</span>
               </div>
               <div class="text-xs font-medium text-slate-500 leading-snug">Dimensiones Analizadas</div>
             </div>
-            <div class="flex flex-col gap-1 px-4 border-r border-slate-200/60">
+            <div class="flex flex-col gap-1 px-4 border-r border-slate-200/60 group cursor-default">
               <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-brand-emerald shrink-0 animate-pulse"></span>
-                <span class="text-3xl font-extrabold text-brand-navy tracking-tight font-sans counter-number" data-target="18">0</span>
+                <span class="text-3xl font-extrabold text-brand-navy tracking-tight font-sans counter-number transition-transform group-hover:scale-105 duration-200" data-target="18">0</span>
               </div>
               <div class="text-xs font-medium text-slate-500 leading-snug">Factores de Decisión</div>
             </div>
-            <div class="flex flex-col gap-1 pl-4">
+            <div class="flex flex-col gap-1 pl-4 group cursor-default">
               <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-brand-emerald shrink-0 animate-pulse"></span>
-                <span class="text-3xl font-extrabold text-brand-navy tracking-tight font-sans">FODA + IA</span>
+                <span class="text-3xl font-extrabold text-brand-navy tracking-tight font-sans transition-transform group-hover:scale-105 duration-200">FODA + IA</span>
               </div>
               <div class="text-xs font-medium text-slate-500 leading-snug">Recomendación Basada en IA</div>
             </div>
@@ -267,11 +374,11 @@
 
         </div>
 
-        <!-- RIGHT COLUMN (5 COLS): MATRIZ DE CUADRANTES HIGH-FIDELITY SAAS CARD -->
+        <!-- RIGHT COLUMN (5 COLS): MATRIZ DE CUADRANTES CON SPOTLIGHT Y 3D TILT -->
         <div class="lg:col-span-5 relative reveal-elem" id="modulos">
-          <div class="border border-slate-200 rounded-lg shadow-sm p-5 bg-white saas-card">
+          <div class="border border-slate-200 rounded-lg shadow-sm p-5 bg-white spotlight-card tilt-card">
             
-            <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200">
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200 relative z-20">
               <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
                 <h3 class="text-xs font-bold text-brand-navy uppercase tracking-wider">Matriz de cuadrantes</h3>
@@ -284,27 +391,27 @@
             </div>
 
             <!-- Quadrants 01 & 02 -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 border-b border-slate-200 pb-4 mb-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 border-b border-slate-200 pb-4 mb-4 relative z-20">
               
-              <div class="p-3 hover:bg-slate-50/70 rounded transition-colors group cursor-default">
+              <div class="p-3 hover:bg-slate-50/80 rounded transition-all duration-200 group cursor-default">
                 <div class="flex items-center justify-between mb-1.5">
                   <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Cuadrante 01</span>
                   <span class="text-[11px] text-slate-500">Técnico</span>
                 </div>
                 <div class="flex items-center gap-2 mb-1.5">
-                  <span class="material-symbols-outlined text-[18px] text-slate-700 group-hover:text-emerald-600 transition-colors">code_blocks</span>
+                  <span class="material-symbols-outlined text-[18px] text-slate-700 group-hover:text-emerald-600 group-hover:scale-110 transition-all duration-200">code_blocks</span>
                   <h4 class="text-xs font-bold text-brand-navy">Dimensión tecnológica</h4>
                 </div>
                 <p class="text-xs text-slate-500 leading-relaxed">Arquitectura, interoperabilidad y madurez del software evaluado.</p>
               </div>
 
-              <div class="p-3 hover:bg-slate-50/70 rounded transition-colors group cursor-default">
+              <div class="p-3 hover:bg-slate-50/80 rounded transition-all duration-200 group cursor-default">
                 <div class="flex items-center justify-between mb-1.5">
                   <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Cuadrante 02</span>
                   <span class="text-[11px] text-slate-500">Gobernanza</span>
                 </div>
                 <div class="flex items-center gap-2 mb-1.5">
-                  <span class="material-symbols-outlined text-[18px] text-slate-700 group-hover:text-emerald-600 transition-colors">corporate_fare</span>
+                  <span class="material-symbols-outlined text-[18px] text-slate-700 group-hover:text-emerald-600 group-hover:scale-110 transition-all duration-200">corporate_fare</span>
                   <h4 class="text-xs font-bold text-brand-navy">Dimensión organizacional</h4>
                 </div>
                 <p class="text-xs text-slate-500 leading-relaxed">Capacidades internas del equipo, gobernanza y cultura técnica.</p>
@@ -313,27 +420,27 @@
             </div>
 
             <!-- Quadrants 03 & 04 -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 pb-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 pb-3 relative z-20">
               
-              <div class="p-3 hover:bg-slate-50/70 rounded transition-colors group cursor-default">
+              <div class="p-3 hover:bg-slate-50/80 rounded transition-all duration-200 group cursor-default">
                 <div class="flex items-center justify-between mb-1.5">
                   <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Cuadrante 03</span>
                   <span class="text-[11px] text-slate-500">Viabilidad</span>
                 </div>
                 <div class="flex items-center gap-2 mb-1.5">
-                  <span class="material-symbols-outlined text-[18px] text-slate-700 group-hover:text-emerald-600 transition-colors">payments</span>
+                  <span class="material-symbols-outlined text-[18px] text-slate-700 group-hover:text-emerald-600 group-hover:scale-110 transition-all duration-200">payments</span>
                   <h4 class="text-xs font-bold text-brand-navy">Dimensión económica</h4>
                 </div>
                 <p class="text-xs text-slate-500 leading-relaxed">Análisis de costos de transición, infraestructura y sostenibilidad a 36 meses.</p>
               </div>
 
-              <div class="p-3 hover:bg-slate-50/70 rounded transition-colors group cursor-default">
+              <div class="p-3 hover:bg-slate-50/80 rounded transition-all duration-200 group cursor-default">
                 <div class="flex items-center justify-between mb-1.5">
                   <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Cuadrante 04</span>
                   <span class="text-[11px] text-slate-500">Dictamen</span>
                 </div>
                 <div class="flex items-center gap-2 mb-1.5">
-                  <span class="material-symbols-outlined text-[18px] text-slate-700 group-hover:text-emerald-600 transition-colors">assessment</span>
+                  <span class="material-symbols-outlined text-[18px] text-slate-700 group-hover:text-emerald-600 group-hover:scale-110 transition-all duration-200">assessment</span>
                   <h4 class="text-xs font-bold text-brand-navy">Matriz FODA</h4>
                 </div>
                 <p class="text-xs text-slate-500 leading-relaxed">Fortalezas, oportunidades, debilidades y dictamen estructurado de evaluación.</p>
@@ -341,7 +448,7 @@
 
             </div>
 
-            <div class="pt-3 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500">
+            <div class="pt-3 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500 relative z-20">
               <span>Ponderación multicriterio normalizada</span>
               <span class="font-medium text-slate-700">Validación técnica institucional</span>
             </div>
@@ -352,7 +459,54 @@
       </div>
     </section>
 
-    <!-- SECTION: PROTOCOLO DE VALIDACIÓN CONTINUA (3 WORKFLOW PHASES) -->
+    <!-- RISE AT SEVEN INFINITE MARQUEE TICKER (Metodología y Certificaciones) -->
+    <section class="w-full border-y border-slate-200/80 bg-white/70 backdrop-blur-sm py-4 overflow-hidden" aria-label="Ecosistema de Validación">
+      <div class="marquee-wrapper">
+        <div class="marquee-content">
+          <span class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wider px-3 py-1 bg-slate-50 border border-slate-200 rounded">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>Norma ISO/IEC 25010
+          </span>
+          <span class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wider px-3 py-1 bg-slate-50 border border-slate-200 rounded">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>Regla RN-03 Filtro de Relevancia
+          </span>
+          <span class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wider px-3 py-1 bg-slate-50 border border-slate-200 rounded">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>Regla RN-07 Umbral de Adopción
+          </span>
+          <span class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wider px-3 py-1 bg-slate-50 border border-slate-200 rounded">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>Evaluación Determinística AHP
+          </span>
+          <span class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wider px-3 py-1 bg-slate-50 border border-slate-200 rounded">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>Cálculo de TCO a 36 Meses
+          </span>
+          <span class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wider px-3 py-1 bg-slate-50 border border-slate-200 rounded">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>Diagnóstico de IA sin Sesgo Comercial
+          </span>
+        </div>
+        <!-- Duplicado idéntico para bucle infinito sin costuras -->
+        <div class="marquee-content" aria-hidden="true">
+          <span class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wider px-3 py-1 bg-slate-50 border border-slate-200 rounded">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>Norma ISO/IEC 25010
+          </span>
+          <span class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wider px-3 py-1 bg-slate-50 border border-slate-200 rounded">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>Regla RN-03 Filtro de Relevancia
+          </span>
+          <span class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wider px-3 py-1 bg-slate-50 border border-slate-200 rounded">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>Regla RN-07 Umbral de Adopción
+          </span>
+          <span class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wider px-3 py-1 bg-slate-50 border border-slate-200 rounded">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>Evaluación Determinística AHP
+          </span>
+          <span class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wider px-3 py-1 bg-slate-50 border border-slate-200 rounded">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>Cálculo de TCO a 36 Meses
+          </span>
+          <span class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wider px-3 py-1 bg-slate-50 border border-slate-200 rounded">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>Diagnóstico de IA sin Sesgo Comercial
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION: PROTOCOLO DE VALIDACIÓN CONTINUA (3 WORKFLOW PHASES CON SPOTLIGHT) -->
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full" id="protocolo">
       <div class="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4 reveal-elem">
         <div>
@@ -368,14 +522,14 @@
         </p>
       </div>
 
-      <!-- 3 Structured Cards with Connected SaaS Feel -->
+      <!-- 3 Structured Cards with Spotlight and Hover Depth -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
         
         <!-- Step 01 -->
-        <div class="bg-white border border-slate-200 rounded-lg p-6 flex flex-col justify-between shadow-sm saas-card reveal-elem">
-          <div>
+        <div class="bg-white border border-slate-200 rounded-lg p-6 flex flex-col justify-between shadow-sm spotlight-card tilt-card reveal-elem">
+          <div class="relative z-20">
             <div class="flex items-center justify-between mb-4">
-              <span class="w-6 h-6 rounded bg-brand-navy text-white flex items-center justify-center font-bold text-xs">01</span>
+              <span class="w-6 h-6 rounded bg-brand-navy text-white flex items-center justify-center font-bold text-xs shadow-sm">01</span>
               <span class="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Fase de filtro</span>
             </div>
             <h3 class="text-base font-bold text-brand-navy mb-2 tracking-tight">Filtro de relevancia</h3>
@@ -383,7 +537,7 @@
               Cruce de importancia institucional y criterios de necesidad estratégica antes de iniciar la evaluación detallada.
             </p>
           </div>
-          <div class="mt-6 pt-3 border-t border-slate-200 flex items-center justify-between text-xs">
+          <div class="mt-6 pt-3 border-t border-slate-200 flex items-center justify-between text-xs relative z-20">
             <span class="text-slate-700 font-medium flex items-center gap-1.5">
               <span class="w-2 h-2 rounded-full bg-emerald-600"></span>Criterio evaluador
             </span>
@@ -392,10 +546,10 @@
         </div>
 
         <!-- Step 02 -->
-        <div class="bg-white border border-slate-200 rounded-lg p-6 flex flex-col justify-between shadow-sm saas-card reveal-elem">
-          <div>
+        <div class="bg-white border border-slate-200 rounded-lg p-6 flex flex-col justify-between shadow-sm spotlight-card tilt-card reveal-elem">
+          <div class="relative z-20">
             <div class="flex items-center justify-between mb-4">
-              <span class="w-6 h-6 rounded bg-slate-700 text-white flex items-center justify-center font-bold text-xs">02</span>
+              <span class="w-6 h-6 rounded bg-slate-700 text-white flex items-center justify-center font-bold text-xs shadow-sm">02</span>
               <span class="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Análisis ponderado</span>
             </div>
             <h3 class="text-base font-bold text-brand-navy mb-2 tracking-tight">Ponderación estructurada</h3>
@@ -403,7 +557,7 @@
               Calificación y evaluación ponderada de factores tecnológicos, organizacionales y económicos normalizados.
             </p>
           </div>
-          <div class="mt-6 pt-3 border-t border-slate-200 flex items-center justify-between text-xs">
+          <div class="mt-6 pt-3 border-t border-slate-200 flex items-center justify-between text-xs relative z-20">
             <span class="text-slate-700 font-medium flex items-center gap-1.5">
               <span class="w-2 h-2 rounded-full bg-emerald-600"></span>Matriz multidimensional
             </span>
@@ -412,10 +566,10 @@
         </div>
 
         <!-- Step 03 -->
-        <div class="bg-white border border-slate-200 rounded-lg p-6 flex flex-col justify-between shadow-sm saas-card reveal-elem">
-          <div>
+        <div class="bg-white border border-slate-200 rounded-lg p-6 flex flex-col justify-between shadow-sm spotlight-card tilt-card reveal-elem">
+          <div class="relative z-20">
             <div class="flex items-center justify-between mb-4">
-              <span class="w-6 h-6 rounded bg-slate-900 text-white flex items-center justify-center font-bold text-xs">03</span>
+              <span class="w-6 h-6 rounded bg-slate-900 text-white flex items-center justify-center font-bold text-xs shadow-sm">03</span>
               <span class="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Dictamen final</span>
             </div>
             <h3 class="text-base font-bold text-brand-navy mb-2 tracking-tight">Diagnóstico FODA y recomendación</h3>
@@ -423,7 +577,7 @@
               Informe técnico y síntesis estructurada con Inteligencia Artificial para determinar la adopción con respaldo normativo y de gobernanza.
             </p>
           </div>
-          <div class="mt-6 pt-3 border-t border-slate-200 flex items-center justify-between text-xs">
+          <div class="mt-6 pt-3 border-t border-slate-200 flex items-center justify-between text-xs relative z-20">
             <span class="text-slate-700 font-medium flex items-center gap-1.5">
               <span class="w-2 h-2 rounded-full bg-emerald-600"></span>Recomendación técnica
             </span>
@@ -436,10 +590,10 @@
 
     <!-- SECTION: HISTORIAL DE TECNOLOGÍAS EVALUADAS (DATA TABLE SCHEMATIC) -->
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full" id="benchmarks">
-      <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden saas-card reveal-elem">
+      <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden spotlight-card reveal-elem">
         
         <!-- Table Toolbar -->
-        <div class="p-6 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div class="p-6 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-20">
           <div>
             <h3 class="text-xl font-bold text-brand-navy">Registro Institucional de Homologaciones</h3>
             <p class="text-xs text-slate-500 mt-1">Metodología multicriterio GUIOSPRO • Muestreo de auditorías aprobadas</p>
@@ -447,17 +601,19 @@
           <div class="flex flex-wrap items-center gap-3">
             <div class="relative">
               <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
-              <input id="software-filter" class="pl-9 pr-4 py-1.5 text-xs bg-white border border-slate-200 rounded focus:outline-none focus:border-slate-400 w-56 text-brand-navy transition-all" placeholder="Filtrar software o stack..." type="text">
+              <input id="software-filter" class="pl-9 pr-4 py-1.5 text-xs bg-white border border-slate-200 rounded focus:outline-none focus:border-slate-400 w-56 text-brand-navy transition-all shadow-sm" placeholder="Filtrar software o stack..." type="text">
             </div>
-            <button id="export-csv-btn" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded hover:bg-slate-50 transition-colors">
-              <span class="material-symbols-outlined text-sm text-slate-500">file_download</span>
-              <span>Exportar CSV</span>
+            <button id="export-csv-btn" class="magnetic-btn inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded hover:bg-slate-50 transition-colors shadow-sm" data-strength="0.2">
+              <span class="magnetic-inner flex items-center gap-1">
+                <span class="material-symbols-outlined text-sm text-slate-500">file_download</span>
+                <span>Exportar CSV</span>
+              </span>
             </button>
           </div>
         </div>
 
         <!-- Table Container -->
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto relative z-20">
           <table class="w-full text-left border-collapse" id="radar-table">
             <thead>
               <tr class="bg-slate-50/70 border-b border-slate-200/80 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
@@ -470,10 +626,13 @@
             </thead>
             <tbody class="divide-y divide-slate-100 text-xs">
               
-              <tr class="hover:bg-slate-50 transition-colors border-b border-slate-200 table-row-item">
+              <tr class="hover:bg-slate-50/80 transition-colors border-b border-slate-200 table-row-item">
                 <td class="py-3 px-6 text-brand-navy font-medium">
-                  <div class="font-semibold text-slate-800 software-name">PostgreSQL 16.2 Enterprise</div>
-                  <div class="text-[11px] text-slate-400">RDBMS • High Availability</div>
+                  <div class="font-semibold text-slate-800 software-name flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-sm bg-slate-300"></span>
+                    <span>PostgreSQL 16.2 Enterprise</span>
+                  </div>
+                  <div class="text-[11px] text-slate-400 pl-4">RDBMS • High Availability</div>
                 </td>
                 <td class="py-3 px-6 text-slate-600 org-name">Infraestructura Cloud Corp</td>
                 <td class="py-3 px-6 text-slate-500">14/10/2026</td>
@@ -489,10 +648,13 @@
                 </td>
               </tr>
 
-              <tr class="hover:bg-slate-50 transition-colors border-b border-slate-200 table-row-item">
+              <tr class="hover:bg-slate-50/80 transition-colors border-b border-slate-200 table-row-item">
                 <td class="py-3 px-6 text-brand-navy font-medium">
-                  <div class="font-semibold text-slate-800 software-name">Redis Cluster 7.2.4 Standalone</div>
-                  <div class="text-[11px] text-slate-400">In-memory Store • Caching</div>
+                  <div class="font-semibold text-slate-800 software-name flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-sm bg-slate-300"></span>
+                    <span>Redis Cluster 7.2.4 Standalone</span>
+                  </div>
+                  <div class="text-[11px] text-slate-400 pl-4">In-memory Store • Caching</div>
                 </td>
                 <td class="py-3 px-6 text-slate-600 org-name">Fintech Core Labs</td>
                 <td class="py-3 px-6 text-slate-500">02/10/2026</td>
@@ -508,10 +670,13 @@
                 </td>
               </tr>
 
-              <tr class="hover:bg-slate-50 transition-colors border-b border-slate-200 table-row-item">
+              <tr class="hover:bg-slate-50/80 transition-colors border-b border-slate-200 table-row-item">
                 <td class="py-3 px-6 text-brand-navy font-medium">
-                  <div class="font-semibold text-slate-800 software-name">Apache Kafka Broker 3.7</div>
-                  <div class="text-[11px] text-slate-400">Event Streaming Platform</div>
+                  <div class="font-semibold text-slate-800 software-name flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-sm bg-slate-300"></span>
+                    <span>Apache Kafka Broker 3.7</span>
+                  </div>
+                  <div class="text-[11px] text-slate-400 pl-4">Event Streaming Platform</div>
                 </td>
                 <td class="py-3 px-6 text-slate-600 org-name">Data Engineering Dept</td>
                 <td class="py-3 px-6 text-slate-500">18/09/2026</td>
@@ -527,10 +692,13 @@
                 </td>
               </tr>
 
-              <tr class="hover:bg-slate-50 transition-colors border-b border-slate-200 table-row-item">
+              <tr class="hover:bg-slate-50/80 transition-colors border-b border-slate-200 table-row-item">
                 <td class="py-3 px-6 text-brand-navy font-medium">
-                  <div class="font-semibold text-slate-800 software-name">Nginx Ingress Controller v1.10</div>
-                  <div class="text-[11px] text-slate-400">Kubernetes • Edge Routing</div>
+                  <div class="font-semibold text-slate-800 software-name flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-sm bg-slate-300"></span>
+                    <span>Nginx Ingress Controller v1.10</span>
+                  </div>
+                  <div class="text-[11px] text-slate-400 pl-4">Kubernetes • Edge Routing</div>
                 </td>
                 <td class="py-3 px-6 text-slate-600 org-name">SecOps Enterprise</td>
                 <td class="py-3 px-6 text-slate-500">28/08/2026</td>
@@ -551,21 +719,21 @@
         </div>
 
         <!-- Table Footer -->
-        <div class="p-4 bg-slate-50/60 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
+        <div class="p-4 bg-slate-50/60 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500 relative z-20">
           <span id="table-counter">Mostrando 4 evaluaciones verificadas de 1,420 registradas</span>
-          <a class="font-semibold text-brand-navy hover:text-brand-emerald flex items-center gap-1 transition-colors" href="{% if user.is_authenticated %}{% url 'inicio' %}{% else %}{% url 'login' %}{% endif %}">
+          <a class="font-semibold text-brand-navy hover:text-brand-emerald flex items-center gap-1 transition-colors group" href="{% if user.is_authenticated %}{% url 'inicio' %}{% else %}{% url 'login' %}{% endif %}">
             <span>Explorar repositorio de software completo</span>
-            <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+            <span class="material-symbols-outlined text-[15px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
           </a>
         </div>
 
       </div>
     </section>
 
-    <!-- PRE-FOOTER CALL TO ACTION (DEEP NAVY CARD) -->
+    <!-- PRE-FOOTER CALL TO ACTION (DEEP NAVY CARD CON SPOTLIGHT) -->
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-      <div class="bg-brand-navy rounded-xl p-8 sm:p-10 text-white border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm reveal-elem">
-        <div class="max-w-2xl">
+      <div class="bg-brand-navy rounded-xl p-8 sm:p-10 text-white border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm spotlight-card reveal-elem">
+        <div class="max-w-2xl relative z-20">
           <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-slate-800 text-slate-300 border border-slate-700 rounded text-xs font-semibold uppercase tracking-wider mb-3">
             Fase de validación institucional
           </span>
@@ -576,22 +744,26 @@
             Acceda al panel analítico para registrar componentes y generar evaluaciones multicriterio estructuradas.
           </p>
         </div>
-        <div class="flex items-center gap-3 shrink-0">
+        <div class="flex items-center gap-3 shrink-0 relative z-20">
           {% if user.is_authenticated %}
-            <a class="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded shadow-sm transition-all group" href="{% url 'nueva' %}">
-              <span>Comenzar ahora</span>
-              <span class="material-symbols-outlined text-sm group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
+            <a class="magnetic-btn inline-flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded shadow-sm transition-all group" href="{% url 'nueva' %}" data-strength="0.3">
+              <span class="magnetic-inner flex items-center gap-2">
+                <span>Comenzar ahora</span>
+                <span class="material-symbols-outlined text-sm group-hover:translate-x-1 transition-transform">arrow_forward</span>
+              </span>
             </a>
-            <a class="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded transition-colors" href="{% url 'inicio' %}">
-              <span>Ir al panel</span>
+            <a class="magnetic-btn inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded transition-colors" href="{% url 'inicio' %}" data-strength="0.2">
+              <span class="magnetic-inner">Ir al panel</span>
             </a>
           {% else %}
-            <a class="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded shadow-sm transition-all group" data-path="login" href="{% url 'login' %}">
-              <span>Comenzar ahora</span>
-              <span class="material-symbols-outlined text-sm group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
+            <a class="magnetic-btn inline-flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded shadow-sm transition-all group" data-path="login" href="{% url 'login' %}" data-strength="0.3">
+              <span class="magnetic-inner flex items-center gap-2">
+                <span>Comenzar ahora</span>
+                <span class="material-symbols-outlined text-sm group-hover:translate-x-1 transition-transform">arrow_forward</span>
+              </span>
             </a>
-            <a class="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded transition-colors" data-path="login" href="{% url 'login' %}">
-              <span>Iniciar sesión</span>
+            <a class="magnetic-btn inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded transition-colors" data-path="login" href="{% url 'login' %}" data-strength="0.2">
+              <span class="magnetic-inner">Iniciar sesión</span>
             </a>
           {% endif %}
         </div>
@@ -632,29 +804,133 @@
     </div>
   </footer>
 
-  <!-- STUDIO INTERACTION SCRIPTS -->
+  <!-- RISE AT SEVEN INTERACTION ENGINE -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      // 1. Smooth Scroll Reveal (Google Studio cubic easing)
+
+      // 1. Dynamic Header Shrink & Auto-Hide on Scroll Down, Reveal on Scroll Up
+      const mainHeader = document.getElementById('main-header');
+      let lastScrollY = window.scrollY;
+      let ticking = false;
+
+      window.addEventListener('scroll', () => {
+        if (!ticking) {
+          window.requestAnimationFrame(() => {
+            const currentScrollY = window.scrollY;
+
+            // Shrink styling
+            if (currentScrollY > 40) {
+              mainHeader.classList.add('nav-scrolled');
+            } else {
+              mainHeader.classList.remove('nav-scrolled');
+            }
+
+            // Directional Hide / Reveal (Rise at Seven pattern)
+            if (currentScrollY > 140 && currentScrollY > lastScrollY + 8) {
+              mainHeader.classList.add('nav-hidden');
+            } else if (currentScrollY < lastScrollY - 6) {
+              mainHeader.classList.remove('nav-hidden');
+            }
+
+            lastScrollY = Math.max(0, currentScrollY);
+            ticking = false;
+          });
+          ticking = true;
+        }
+      }, { passive: true });
+
+      // 3. Magnetic Physics on Buttons & Badges (2.5D spring physics)
+      if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+        const magneticElements = document.querySelectorAll('.magnetic-btn');
+        magneticElements.forEach(btn => {
+          const inner = btn.querySelector('.magnetic-inner') || btn;
+          const strength = parseFloat(btn.dataset.strength) || 0.28;
+          const innerStrength = strength * 1.5;
+
+          btn.addEventListener('mousemove', (e) => {
+            const rect = btn.getBoundingClientRect();
+            const relX = e.clientX - (rect.left + rect.width / 2);
+            const relY = e.clientY - (rect.top + rect.height / 2);
+
+            btn.style.transform = `translate3d(${relX * strength}px, ${relY * strength}px, 0)`;
+            if (inner !== btn) {
+              inner.style.transform = `translate3d(${relX * innerStrength}px, ${relY * innerStrength}px, 0)`;
+            }
+          });
+
+          btn.addEventListener('mouseleave', () => {
+            btn.style.transition = 'transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+            if (inner !== btn) {
+              inner.style.transition = 'transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+            }
+
+            btn.style.transform = 'translate3d(0, 0, 0)';
+            if (inner !== btn) {
+              inner.style.transform = 'translate3d(0, 0, 0)';
+            }
+
+            setTimeout(() => {
+              btn.style.transition = '';
+              if (inner !== btn) inner.style.transition = '';
+            }, 500);
+          });
+        });
+      }
+
+      // 4. Radial Spotlight Glow on Cards
+      const spotlightCards = document.querySelectorAll('.spotlight-card');
+      spotlightCards.forEach(card => {
+        card.addEventListener('mousemove', (e) => {
+          const rect = card.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          card.style.setProperty('--mouse-x', `${x}px`);
+          card.style.setProperty('--mouse-y', `${y}px`);
+        });
+      });
+
+      // 5. 3D Micro-Tilt on Cards
+      if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+        const tiltCards = document.querySelectorAll('.tilt-card');
+        tiltCards.forEach(card => {
+          card.addEventListener('mousemove', (e) => {
+            const rect = card.getBoundingClientRect();
+            const x = e.clientX - rect.left - rect.width / 2;
+            const y = e.clientY - rect.top - rect.height / 2;
+            const rotateX = -(y / (rect.height / 2)) * 3;
+            const rotateY = (x / (rect.width / 2)) * 3;
+            card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-4px)`;
+          });
+
+          card.addEventListener('mouseleave', () => {
+            card.style.transition = 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)';
+            card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) translateY(0)';
+            setTimeout(() => {
+              card.style.transition = '';
+            }, 500);
+          });
+        });
+      }
+
+      // 6. Smooth Scroll Reveal & Exponential Counter
       const revealElements = document.querySelectorAll('.reveal-elem');
       if ('IntersectionObserver' in window) {
         const observer = new IntersectionObserver((entries) => {
           entries.forEach(entry => {
             if (entry.isIntersecting) {
               entry.target.classList.add('is-revealed');
-              // Animate numbers inside if any
               const counters = entry.target.querySelectorAll('.counter-number');
               counters.forEach(counter => {
                 if (!counter.dataset.animated) {
                   counter.dataset.animated = "true";
-                  animateCounter(counter);
+                  animateExponentialCounter(counter);
                 }
               });
             }
           });
         }, {
-          threshold: 0.15,
-          rootMargin: "0px 0px -30px 0px"
+          threshold: 0.12,
+          rootMargin: "0px 0px -40px 0px"
         });
 
         revealElements.forEach(el => observer.observe(el));
@@ -662,16 +938,16 @@
         revealElements.forEach(el => el.classList.add('is-revealed'));
       }
 
-      // 2. Animated KPI Counter Function
-      function animateCounter(el) {
+      // Exponential Decelerating Counter: 1 - Math.pow(2, -10 * progress)
+      function animateExponentialCounter(el) {
         const target = parseInt(el.dataset.target, 10) || 0;
-        const duration = 1200;
+        const duration = 1500;
         const startTime = performance.now();
 
         function step(now) {
           const elapsed = now - startTime;
           const progress = Math.min(elapsed / duration, 1);
-          const easeOut = 1 - Math.pow(1 - progress, 3);
+          const easeOut = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
           const val = Math.floor(target * easeOut);
           el.textContent = val;
 
@@ -684,7 +960,7 @@
         requestAnimationFrame(step);
       }
 
-      // 3. Live Search Filter in Radar Table
+      // 7. Live Search Filter in Radar Table
       const filterInput = document.getElementById('software-filter');
       const tableRows = document.querySelectorAll('.table-row-item');
       const counterText = document.getElementById('table-counter');
@@ -713,7 +989,7 @@
         });
       }
 
-      // 4. Export CSV Handler
+      // 8. Export CSV Handler
       const exportBtn = document.getElementById('export-csv-btn');
       if (exportBtn) {
         exportBtn.addEventListener('click', () => {
@@ -735,6 +1011,7 @@
           document.body.removeChild(link);
         });
       }
+
     });
   </script>
 

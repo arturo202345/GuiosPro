@@ -37,6 +37,7 @@ SESSION_COOKIE_SECURE=not DEBUG
 CSRF_COOKIE_SECURE=not DEBUG
 STATIC_ROOT=BASE_DIR/'staticfiles'
 STORAGES={'default':{'BACKEND':'django.core.files.storage.FileSystemStorage'},'staticfiles':{'BACKEND':'whitenoise.storage.CompressedManifestStaticFilesStorage'}}
+WHITENOISE_MANIFEST_STRICT = False
 AUTH_PASSWORD_VALIDATORS=[
     {'NAME':'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME':'django.contrib.auth.password_validation.MinimumLengthValidator'},
